@@ -156,4 +156,4 @@ This project follows a **multi-project workspace** pattern where each review pro
 
 ## 📄 License
 
-This project is for educational and portfolio purposes.
+This project is licensed under CC BY-NC-SA 4.0 — you may share and adapt it for non-commercial purposes only, with attribution and under the same license.

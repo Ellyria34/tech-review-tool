@@ -1,59 +1,122 @@
-# TechReviewTool
+# 🔬 TechReviewTool
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.1.4.
+> Angular 21 tech review tool — RSS aggregator with AI-powered content generation.
 
-## Development server
+## 📋 Overview
 
-To start a local development server, run:
+TechReviewTool is a web application that helps developers and tech professionals stay on top of technology news. It aggregates articles from configurable RSS sources, filters them by topic and keywords, and uses AI to generate summaries, press reviews, and LinkedIn posts.
+
+### Key Features (Planned)
+
+- **Multi-project workspace** — Organize your tech watch by theme (Cybersecurity, AI, Frontend, .NET...)
+- **Configurable RSS sources** — Add/remove sources per project
+- **Smart filtering** — Filter articles by keywords and time window (12h, 24h, 48h, 7d)
+- **AI-powered generation** — Select articles and generate:
+  - Concise synthesis of key points
+  - Structured press review
+  - Optimized LinkedIn post
+- **Generation history** — Find and reuse past AI-generated content
+- **Mobile-first responsive design** — Works on phone, tablet, and desktop
+
+## 🛠️ Tech Stack
+
+| Technology | Version | Purpose |
+|---|---|---|
+| Angular | 21.1.4 (Active) | Frontend framework |
+| TypeScript | 5.8+ | Type-safe JavaScript |
+| SCSS | — | Styling with variables, nesting, mixins |
+| Node.js | 22.22.0 (Maintenance LTS) | JavaScript runtime |
+| npm | 10.9.4 (bundled) | Package manager |
+
+## 📁 Project Structure
+
+```
+tech-review-tool/
+├── src/
+│   ├── app/
+│   │   ├── app.ts                 # Root component
+│   │   ├── app.html               # Root template
+│   │   ├── app.scss               # Root styles
+│   │   ├── app.config.ts          # Application configuration
+│   │   └── app.routes.ts          # Route definitions
+│   ├── index.html                 # Main HTML page
+│   ├── main.ts                    # Application entry point
+│   └── styles.scss                # Global styles
+├── public/                        # Static assets
+├── .gitattributes                 # Line ending normalization (LF)
+├── .editorconfig                  # Editor formatting conventions
+├── angular.json                   # Angular CLI configuration
+├── package.json                   # Dependencies and scripts
+├── tsconfig.json                  # Base TypeScript configuration
+├── tsconfig.app.json              # App-specific TypeScript config
+└── tsconfig.spec.json             # Test-specific TypeScript config
+```
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) >= 22.12.0 (LTS recommended)
+- npm >= 10.x (bundled with Node.js)
+- [Angular CLI](https://angular.dev/cli) 21.x
+
+### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/Ellyria34/tech-review-tool.git
+cd tech-review-tool
+
+# Install dependencies
+npm install
+
+# Start the development server
 ng serve
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Open [http://localhost:4200](http://localhost:4200) in your browser.
 
-## Code scaffolding
+### Available Scripts
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+| Command | Description |
+|---|---|
+| `ng serve` | Start development server with hot reload |
+| `ng build` | Build for production |
+| `ng test` | Run unit tests |
+| `ng lint` | Run linter |
 
-```bash
-ng generate component component-name
-```
+## 🏗️ Architecture
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+This project follows a **multi-project workspace** pattern where each review project acts as an isolated context (similar to multi-tenant architecture).
 
-```bash
-ng generate --help
-```
+### Design Principles
 
-## Building
+- **SOLID** — Single responsibility components and services
+- **Mobile-first** — Responsive design starting from smallest screens
+- **Accessibility (a11y)** — WCAG 2.1 AA compliance
+- **GDPR-friendly** — Local-first data, no unnecessary third-party tracking
+- **Conventional Commits** — Structured commit messages for readable history
 
-To build the project run:
+## 📖 Documentation
 
-```bash
-ng build
-```
+| Document | Language | Description |
+|---|---|---|
+| [ARCHITECTURE_ET_METHODOLOGIE.md](./docs/ARCHITECTURE_ET_METHODOLOGIE.md) | 🇫🇷 French | Architecture decisions, methodology, SOLID principles |
+| [JOURNAL_DE_BORD.md](./docs/JOURNAL_DE_BORD.md) | 🇫🇷 French | Day-by-day progress log for onboarding |
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+## 🗺️ Roadmap
 
-## Running unit tests
+- [x] **Step 0** — Project setup (Angular 21, Git, GitHub)
+- [ ] **Step 1** — Project structure, linting, Tailwind CSS
+- [ ] **Step 2** — Multi-project feature (CRUD projects)
+- [ ] **Step 3** — RSS source management per project
+- [ ] **Step 4** — Article listing with filters
+- [ ] **Step 5** — AI-powered content generation
+- [ ] **Step 6** — Generation history
+- [ ] **Step 7** — Desktop layout adaptation
+- [ ] **Step 8** — Testing, accessibility audit, production build
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+## 📄 License
 
-```bash
-ng test
-```
+This project is for educational and portfolio purposes.
 
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.

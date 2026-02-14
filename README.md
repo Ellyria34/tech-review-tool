@@ -34,22 +34,58 @@ TechReviewTool is a web application that helps developers and tech professionals
 tech-review-tool/
 ├── src/
 │   ├── app/
-│   │   ├── app.ts                 # Root component
-│   │   ├── app.html               # Root template
-│   │   ├── app.scss               # Root styles
-│   │   ├── app.config.ts          # Application configuration
-│   │   └── app.routes.ts          # Route definitions
-│   ├── index.html                 # Main HTML page
-│   ├── main.ts                    # Application entry point
-│   └── styles.scss                # Global styles
-├── public/                        # Static assets
-├── .gitattributes                 # Line ending normalization (LF)
-├── .editorconfig                  # Editor formatting conventions
-├── angular.json                   # Angular CLI configuration
-├── package.json                   # Dependencies and scripts
-├── tsconfig.json                  # Base TypeScript configuration
-├── tsconfig.app.json              # App-specific TypeScript config
-└── tsconfig.spec.json             # Test-specific TypeScript config
+│   │   ├── core/
+│   │   │   ├── components/
+│   │   │   │   ├── bottom-nav/         # Mobile navigation bar
+│   │   │   │   │   ├── bottom-nav.html
+│   │   │   │   │   ├── bottom-nav.scss
+│   │   │   │   │   └── bottom-nav.ts
+│   │   │   │   └── header/             # App header (always visible)
+│   │   │   │       ├── header.html
+│   │   │   │       ├── header.scss
+│   │   │   │       └── header.ts
+│   │   │   ├── guards/                 # Route protection (planned)
+│   │   │   ├── interceptors/           # HTTP interceptors (planned)
+│   │   │   └── services/               # Singleton services (planned)
+│   │   ├── features/
+│   │   │   ├── ai-actions/             # AI content generation (planned)
+│   │   │   ├── articles/               # Article listing and filters (planned)
+│   │   │   ├── history/                # Generation history (planned)
+│   │   │   ├── projects/               # Project management (planned)
+│   │   │   └── sources/                # RSS source management (planned)
+│   │   ├── shared/
+│   │   │   ├── components/             # Reusable UI components (planned)
+│   │   │   ├── directives/             # Custom directives (planned)
+│   │   │   └── pipes/                  # Custom pipes (planned)
+│   │   ├── app.config.ts               # Application configuration
+│   │   ├── app.html                    # Root template (App Shell)
+│   │   ├── app.routes.ts               # Route definitions
+│   │   ├── app.scss                    # Root styles
+│   │   ├── app.spec.ts                 # Root component tests
+│   │   └── app.ts                      # Root component
+│   ├── index.html                      # Main HTML page
+│   ├── main.ts                         # Application entry point
+│   ├── styles.scss                     # Global styles
+│   └── tailwind.css                    # Tailwind CSS entry point
+├── .claude/                            # AI assistant configuration (Angular best practices)
+├── .vscode/                            # VS Code workspace settings
+├── docs/
+│   ├── ARCHITECTURE_ET_METHODOLOGIE.md # Architecture decisions (FR)
+│   └── JOURNAL_DE_BORD.md             # Progress journal (FR)
+├── public/                             # Static assets (favicon, images)
+├── .editorconfig                       # Editor formatting conventions
+├── .gitattributes                      # Line ending normalization (LF)
+├── .gitignore                          # Files ignored by Git
+├── .postcssrc.json                     # PostCSS configuration (Tailwind)
+├── .prettierrc                         # Prettier code formatting rules
+├── eslint.config.js                    # ESLint code quality rules
+├── angular.json                        # Angular CLI configuration
+├── package.json                        # Dependencies and scripts
+├── package-lock.json                   # Locked dependency versions
+├── tsconfig.json                       # Base TypeScript configuration
+├── tsconfig.app.json                   # App-specific TypeScript config
+├── tsconfig.spec.json                  # Test-specific TypeScript config
+└── README.md                           # This file
 ```
 
 ## 🚀 Getting Started
@@ -83,7 +119,9 @@ Open [http://localhost:4200](http://localhost:4200) in your browser.
 | `ng serve` | Start development server with hot reload |
 | `ng build` | Build for production |
 | `ng test` | Run unit tests |
-| `ng lint` | Run linter |
+| `ng lint` | Run ESLint code quality checks |
+| `npx prettier --check src/` | Check code formatting |
+| `npx prettier --write src/` | Auto-fix code formatting |
 
 ## 🏗️ Architecture
 
@@ -107,7 +145,7 @@ This project follows a **multi-project workspace** pattern where each review pro
 ## 🗺️ Roadmap
 
 - [x] **Step 0** — Project setup (Angular 21, Git, GitHub)
-- [ ] **Step 1** — Project structure, linting, Tailwind CSS
+- [x] **Step 1** — Project structure, linting, Tailwind CSS, App Shell
 - [ ] **Step 2** — Multi-project feature (CRUD projects)
 - [ ] **Step 3** — RSS source management per project
 - [ ] **Step 4** — Article listing with filters
@@ -119,4 +157,3 @@ This project follows a **multi-project workspace** pattern where each review pro
 ## 📄 License
 
 This project is for educational and portfolio purposes.
-

@@ -50,6 +50,9 @@ L'application suit le pattern **Workspace** (comme Slack, Notion, VS Code) :
 2. **Phase 2** — Travailler DANS le contexte de ce projet
 
 Chaque projet est isolé : ses propres sources, articles, et contenus générés. C'est le pattern **Multi-Tenant** appliqué côté front-end.
+
+**Parallèle C#** : C'est comme un `TenantMiddleware` en ASP.NET qui résout le tenant en début de requête. En Angular, un signal `currentProject` joue ce rôle de contexte global.
+
 ---
 
 ## 2. Choix technologiques argumentés
@@ -66,11 +69,12 @@ Chaque projet est isolé : ses propres sources, articles, et contenus générés
 
 ### 2.2 Pourquoi Angular 21 et pas une autre version ?
 
-Angular 21 est en support "Active" — il reçoit nouvelles features + bugfixes + sécurité. 
-Angular 20 est en LTS (sécurité seulement). 
-Pour un nouveau projet, on prend toujours la version Active.
+**Pourquoi pas Angular 20 (LTS) ?** Angular 21 est en support "Active" — il reçoit nouvelles features + bugfixes + sécurité. Angular 20 est en LTS (sécurité seulement). Pour un nouveau projet, on prend toujours la version Active.
+
+**Parallèle C#** : C'est comme choisir .NET 9 (Current) plutôt que .NET 8 (LTS) pour un nouveau projet. Le LTS est pour les projets en production qui ne veulent plus bouger.
 
 **Pourquoi pas React ou Vue ?** Angular est le framework front le plus proche de l'écosystème C#/.NET :
+
 - TypeScript natif (pas optionnel)
 - Injection de dépendances intégrée
 - Framework opinionated : il impose une structure (comme ASP.NET)
@@ -79,17 +83,14 @@ Pour un nouveau projet, on prend toujours la version Active.
 
 ### 2.3 Pourquoi Node.js 22 et pas Node.js 24 ?
 
-Node.js 22 est en Maintenance LTS (support jusqu'en avril 2027). Node.js 24 est en Active LTS (support jusqu'en avril 2028). 
-On a choisi Node 22 car :
+Node.js 22 est en Maintenance LTS (support jusqu'en avril 2027). Node.js 24 est en Active LTS (support jusqu'en avril 2028). On a choisi Node 22 car :
+
 - Angular 21 supporte `^20.19.0 || ^22.12.0 || ^24.0.0` — les deux fonctionnent
 - Node 22 était déjà installé et à jour (22.22.0 avec les derniers correctifs CVE)
 - Éviter un changement de runtime en cours de projet
 - 14 mois de support restants — largement suffisant pour le développement
 
-**Règle de décision** : 
-npm est livré (bundled) avec Node.js. 
-On ne met JAMAIS à jour npm indépendamment (npm 11 ≠ compatible Node 22). 
-Pour vérifier la version bundled : consulter les release notes sur https://nodejs.org/en/blog/release/
+**Règle de décision** : npm est livré (bundled) avec Node.js. On ne met JAMAIS à jour npm indépendamment (npm 11 ≠ compatible Node 22). Pour vérifier la version bundled : consulter les release notes sur https://nodejs.org/en/blog/release/
 
 ---
 
@@ -108,6 +109,8 @@ ReviewProject (entité racine)
 
 Chaque entité porte un `projectId` — c'est le pattern **Multi-Tenant**.
 
+**Parallèle C#** : Comme des Entity Framework Models avec un `TenantId` filtré automatiquement par un `ITenantProvider`.
+
 ### 3.2 Navigation
 
 ```
@@ -118,6 +121,8 @@ Chaque entité porte un `projectId` — c'est le pattern **Multi-Tenant**.
 /projects/:id/sources        → Sources du projet
 /projects/:id/history        → Historique des générations
 ```
+
+**Parallèle C#** : Comme des Areas avec routing imbriqué en ASP.NET MVC : `[Area("Projects")] [Route("projects/{projectId}/articles")]`.
 
 ### 3.3 Composants Angular prévus
 
@@ -162,7 +167,7 @@ export class ProjectListComponent {
   filterByDate() { /* logique métier */ }
 }
 
-// le composant AFFICHE, le service GÈRE
+// ✅ Bon : le composant AFFICHE, le service GÈRE
 export class ProjectListComponent {
   projects = this.projectService.projects; // Signal du service
 }
@@ -201,11 +206,14 @@ export class ProjectService {
 ```
 src/
 ├── app/
-│   ├── core/                  # Services singleton, guards, interceptors
+│   ├── core/                  # Singleton : composants, services, guards, interceptors
+│   │   ├── components/
+│   │   │   ├── bottom-nav/    # Navigation mobile (toujours visible en bas)
+│   │   │   └── header/        # Header de l'app (toujours visible en haut)
 │   │   ├── services/
 │   │   ├── guards/
 │   │   └── interceptors/
-│   ├── features/              # Modules fonctionnels
+│   ├── features/              # Domaines fonctionnels
 │   │   ├── projects/          # CRUD projets
 │   │   ├── articles/          # Liste, filtres, sélection
 │   │   ├── sources/           # Gestion des sources RSS
@@ -216,16 +224,27 @@ src/
 │   │   ├── pipes/
 │   │   └── directives/
 │   ├── app.ts                 # Composant racine
-│   ├── app.html               # Template racine
+│   ├── app.html               # Template racine (App Shell)
 │   ├── app.scss               # Styles racine
-│   ├── app.config.ts          # Configuration
+│   ├── app.spec.ts            # Tests du composant racine
+│   ├── app.config.ts          # Configuration (providers, DI)
 │   └── app.routes.ts          # Routes principales
-├── assets/                    # Images, fonts, fichiers statiques
-├── environments/              # Variables d'environnement
 ├── index.html                 # Page HTML principale
-├── main.ts                    # Point d'entrée
-└── styles.scss                # Styles globaux (variables SCSS, reset)
+├── main.ts                    # Point d'entrée de l'application
+├── styles.scss                # Styles globaux (variables SCSS, reset)
+└── tailwind.css               # Point d'entrée Tailwind CSS
 ```
+
+**Parallèle C#** :
+
+| Angular | ASP.NET |
+|---|---|
+| `core/services/` | `Services/` |
+| `core/guards/` | `Filters/` ou `Middleware/` |
+| `features/projects/` | `Areas/Projects/` |
+| `shared/components/` | `Views/Shared/` |
+| `app.routes.ts` | `Program.cs` (routing) |
+| `app.config.ts` | `Program.cs` (DI container) |
 
 ---
 
@@ -321,7 +340,7 @@ Pour un projet solo avec montée en compétence :
 |---|---|---|
 | **0** | Conception, wireframes, document d'architecture | ✅ Terminé |
 | **0.5** | Setup : Node.js 22, Angular CLI 21, Git, GitHub | ✅ Terminé |
-| **1** | Structure projet, linting, Tailwind CSS, premier composant | ⬜ À faire |
+| **1** | Structure projet, linting, Tailwind CSS, App Shell | ✅ Terminé |
 | **2** | Feature multi-projets (CRUD projets) | ⬜ À faire |
 | **3** | Gestion des sources RSS par projet | ⬜ À faire |
 | **4** | Liste d'articles avec filtres (mots-clés, période) | ⬜ À faire |

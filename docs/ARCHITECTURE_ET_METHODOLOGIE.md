@@ -3,7 +3,7 @@
 > **Nom du projet** : TechReviewTool — Agrégateur intelligent de veille technologique
 > **Date de création** : 14 février 2026
 > **Auteur** : Ellyria34
-> **Statut** : Phase 0 — Setup terminé, prête à coder
+> **Statut** : Étape 1 terminée — Structure, outillage et App Shell en place
 
 ---
 
@@ -19,7 +19,7 @@
 8. [Accessibilité (a11y)](#8-accessibilité-a11y)
 9. [Stratégie de tests](#9-stratégie-de-tests)
 10. [Plan d'exécution par étapes](#10-plan-dexécution-par-étapes)
-11. [Glossaire C# → Angular](#11-glossaire-c--angular)
+11. [Glossaire Angular / TypeScript](#11-glossaire-angular--typescript)
 
 ---
 
@@ -49,9 +49,7 @@ L'application suit le pattern **Workspace** (comme Slack, Notion, VS Code) :
 1. **Phase 1** — Choisir ou créer un projet de veille
 2. **Phase 2** — Travailler DANS le contexte de ce projet
 
-Chaque projet est isolé : ses propres sources, articles, et contenus générés. C'est le pattern **Multi-Tenant** appliqué côté front-end.
-
-**Parallèle C#** : C'est comme un `TenantMiddleware` en ASP.NET qui résout le tenant en début de requête. En Angular, un signal `currentProject` joue ce rôle de contexte global.
+Chaque projet est isolé : ses propres sources, articles, et contenus générés. C'est le pattern **Multi-Tenant** appliqué côté front-end. En Angular, un signal `currentProject` joue le rôle de contexte global qui détermine les données affichées.
 
 ---
 
@@ -61,8 +59,8 @@ Chaque projet est isolé : ses propres sources, articles, et contenus générés
 
 | Technologie | Version | Justification |
 |---|---|---|
-| **Angular** | **21.1.4** (Active, support jusqu'en mai 2027) | Framework structuré avec TypeScript natif, injection de dépendances, Signals comme paradigme réactif. Le plus proche de l'écosystème C#/.NET en termes de concepts (DI, classes, décorateurs, structure forte). |
-| **TypeScript** | **5.8+** (embarqué avec Angular 21) | Typage statique fort — familier pour un·e dev C#. TypeScript EST le langage d'Angular, pas une option. |
+| **Angular** | **21.1.4** (Active, support jusqu'en mai 2027) | Framework structuré avec TypeScript natif, injection de dépendances, Signals comme paradigme réactif. Structure forte et opinionated, idéal pour les applications d'entreprise. |
+| **TypeScript** | **5.8+** (embarqué avec Angular 21) | Typage statique fort qui sécurise le code et améliore l'autocomplétion. TypeScript EST le langage d'Angular, pas une option. |
 | **SCSS** | — | CSS avec variables, nesting et mixins pour un code maintenable et un responsive mobile-first propre. |
 | **Node.js** | **22.22.0** (Maintenance LTS "Jod", support jusqu'en avril 2027) | Runtime JavaScript pour l'outillage (CLI Angular, build, dev server). Version LTS = stabilité garantie. |
 | **npm** | **10.9.4** (bundled avec Node.js 22.22.0) | Gestionnaire de paquets livré avec Node.js. On utilise la version bundled pour éviter les incompatibilités. |
@@ -71,15 +69,13 @@ Chaque projet est isolé : ses propres sources, articles, et contenus générés
 
 **Pourquoi pas Angular 20 (LTS) ?** Angular 21 est en support "Active" — il reçoit nouvelles features + bugfixes + sécurité. Angular 20 est en LTS (sécurité seulement). Pour un nouveau projet, on prend toujours la version Active.
 
-**Parallèle C#** : C'est comme choisir .NET 9 (Current) plutôt que .NET 8 (LTS) pour un nouveau projet. Le LTS est pour les projets en production qui ne veulent plus bouger.
-
-**Pourquoi pas React ou Vue ?** Angular est le framework front le plus proche de l'écosystème C#/.NET :
+**Pourquoi pas React ou Vue ?** Angular est un framework opinionated qui impose une structure claire :
 
 - TypeScript natif (pas optionnel)
 - Injection de dépendances intégrée
-- Framework opinionated : il impose une structure (comme ASP.NET)
-- Concepts OOP familiers : classes, interfaces, décorateurs ≈ attributs C#
-- Séparation des responsabilités : Component / Service / Route ≈ Controller / Service / Repository
+- Framework opinionated : il impose une structure (conventions > configuration)
+- Concepts OOP : classes, interfaces, décorateurs
+- Séparation des responsabilités : Component (affichage) / Service (logique) / Route (navigation)
 
 ### 2.3 Pourquoi Node.js 22 et pas Node.js 24 ?
 
@@ -107,9 +103,7 @@ ReviewProject (entité racine)
 └── GeneratedContent[] (contenus IA générés)
 ```
 
-Chaque entité porte un `projectId` — c'est le pattern **Multi-Tenant**.
-
-**Parallèle C#** : Comme des Entity Framework Models avec un `TenantId` filtré automatiquement par un `ITenantProvider`.
+Chaque entité porte un `projectId` — c'est le pattern **Multi-Tenant**. En Angular, on modélisera ces entités avec des **interfaces TypeScript** et on filtrera les données via le signal `currentProjectId`.
 
 ### 3.2 Navigation
 
@@ -122,7 +116,7 @@ Chaque entité porte un `projectId` — c'est le pattern **Multi-Tenant**.
 /projects/:id/history        → Historique des générations
 ```
 
-**Parallèle C#** : Comme des Areas avec routing imbriqué en ASP.NET MVC : `[Area("Projects")] [Route("projects/{projectId}/articles")]`.
+Ce routing imbriqué utilise les **children routes** d'Angular avec un **resolver** qui charge le projet actif avant de rendre les sous-routes.
 
 ### 3.3 Composants Angular prévus
 
@@ -154,8 +148,7 @@ Chaque entité porte un `projectId` — c'est le pattern **Multi-Tenant**.
 
 ### S — Single Responsibility (Responsabilité unique)
 
-**C#** : Un Controller ne fait que router, un Service ne fait que la logique métier.
-**Angular** : Un Component ne fait que l'affichage, un Service ne fait que les données.
+Un Component ne fait que l'affichage, un Service ne fait que la logique de données.
 
 ```typescript
 // ❌ Mauvais : le composant fait TOUT
@@ -181,23 +174,23 @@ export class ProjectService {
 
 ### O — Open/Closed (Ouvert/Fermé)
 
-**C#** : On étend via des interfaces, pas en modifiant le code existant.
-**Angular** : On étend via l'injection de dépendances et les tokens.
+On étend le comportement via l'injection de dépendances et les tokens d'injection, sans modifier le code existant.
 
 ### L — Liskov Substitution
 
-**C#** : Une sous-classe peut remplacer sa classe parente.
-**Angular** : Un service implémentant une interface peut remplacer un autre.
+Un service implémentant une interface peut remplacer un autre. Exemple : un `MockProjectService` peut remplacer `ProjectService` dans les tests sans casser l'application.
 
 ### I — Interface Segregation (Ségrégation des interfaces)
 
-**C#** : Plein de petites interfaces plutôt qu'une grosse.
-**Angular** : Plein de petits services plutôt qu'un "God Service".
+Plein de petits services spécialisés plutôt qu'un "God Service" qui fait tout. Exemple : `ProjectService`, `ArticleService`, `AiService` au lieu d'un unique `AppService`.
 
 ### D — Dependency Inversion
 
-**C#** : `services.AddScoped<IProjectService, ProjectService>()`
-**Angular** : `{ provide: ProjectService, useClass: MockProjectService }`
+Les composants dépendent d'abstractions (interfaces/tokens), pas d'implémentations concrètes. Angular le gère nativement via son système d'injection de dépendances :
+
+```typescript
+{ provide: ProjectService, useClass: MockProjectService }
+```
 
 ---
 
@@ -235,16 +228,13 @@ src/
 └── tailwind.css               # Point d'entrée Tailwind CSS
 ```
 
-**Parallèle C#** :
+**Logique d'organisation** :
 
-| Angular | ASP.NET |
-|---|---|
-| `core/services/` | `Services/` |
-| `core/guards/` | `Filters/` ou `Middleware/` |
-| `features/projects/` | `Areas/Projects/` |
-| `shared/components/` | `Views/Shared/` |
-| `app.routes.ts` | `Program.cs` (routing) |
-| `app.config.ts` | `Program.cs` (DI container) |
+| Dossier | Rôle | Combien de fois utilisé ? |
+|---|---|---|
+| `core/` | Composants et services singleton (app-level) | 1 fois dans l'app |
+| `features/` | Domaines métier isolés | Spécifique à chaque domaine |
+| `shared/` | Composants, pipes, directives réutilisables | N fois dans plusieurs features |
 
 ---
 
@@ -330,8 +320,6 @@ Pour un projet solo avec montée en compétence :
 | **Composant** | Vitest + Angular Testing Library | Rendu, interactions utilisateur |
 | **E2E** | Playwright | Parcours utilisateur complets |
 
-**Parallèle C#** : Vitest ≈ xUnit, Angular Testing Library ≈ bUnit (Blazor), Playwright ≈ Selenium.
-
 ---
 
 ## 10. Plan d'exécution par étapes
@@ -351,26 +339,20 @@ Pour un projet solo avec montée en compétence :
 
 ---
 
-## 11. Glossaire C# → Angular
+## 11. Glossaire Angular / TypeScript
 
-| Concept C# | Équivalent Angular | Notes |
-|---|---|---|
-| `Program.cs` | `main.ts` | Point d'entrée de l'application |
-| `.csproj` | `package.json` | Dépendances et métadonnées du projet |
-| `dotnet restore` | `npm install` | Installer les dépendances |
-| `dotnet run` | `ng serve` | Lancer l'application en développement |
-| `dotnet build` | `ng build` | Compiler pour la production |
-| Controller | Component | Gère l'affichage et les interactions |
-| Service (DI) | Service (DI) | Identique ! Injectable avec `@Injectable()` |
-| `[ApiController]` | `@Component()` | Décorateur de classe |
-| Razor `@Model.Title` | `{{ title() }}` | Interpolation dans le template |
-| `INotifyPropertyChanged` | `signal()` | Réactivité — mise à jour auto de la vue |
-| `appsettings.json` | `environment.ts` | Variables de configuration |
-| Middleware | Interceptor / Guard | Traitement avant/après les requêtes |
-| `bin/` + `obj/` | `node_modules/` + `.angular/` | Fichiers générés, ignorés par Git |
-| `.editorconfig` | `.editorconfig` | Identique ! |
-| `global.json` | `package.json` (engines) | Contraintes de version du runtime |
-| Areas | Routes imbriquées (children) | Organisation par domaine fonctionnel |
-| `[Authorize]` | Guard (`canActivate`) | Protection des routes |
-| NuGet | npm | Gestionnaire de paquets |
-| Solution (.sln) | Workspace (angular.json) | Conteneur de projet(s) |
+| Terme | Définition |
+|---|---|
+| `Component` | Brique d'interface : un template HTML + une classe TypeScript + des styles. Gère l'affichage et les interactions utilisateur. |
+| `Service` | Classe injectable qui contient la logique métier et la gestion des données. Singleton par défaut (`providedIn: 'root'`). |
+| `Signal` | Valeur réactive qui notifie automatiquement les composants quand elle change. Remplace RxJS pour les cas simples. |
+| `Route` | Association entre une URL et un composant. Définies dans `app.routes.ts`. |
+| `Guard` | Fonction qui protège l'accès à une route (ex: vérifier qu'un projet existe avant d'y accéder). |
+| `Interceptor` | Fonction qui intercepte les requêtes HTTP sortantes (ex: ajouter un token d'authentification). |
+| `Pipe` | Transformateur de données dans le template (ex: `{{ date \| dateFormat }}`). |
+| `Directive` | Attribut qui modifie le comportement d'un élément HTML existant. |
+| `DI (Dependency Injection)` | Mécanisme Angular qui fournit automatiquement les services aux composants qui en ont besoin via `inject()`. |
+| `Standalone Component` | Composant auto-suffisant qui déclare ses propres imports. Pas besoin de NgModule (standard depuis Angular 17+). |
+| `Resolver` | Fonction qui charge des données AVANT que la route ne s'affiche. |
+| `Template syntax` | `{{ }}` pour l'interpolation, `@for` / `@if` / `@switch` pour le contrôle de flux (Angular 17+). |
+| `Tree-shaking` | Suppression automatique du code non utilisé au build. Réduit la taille du bundle final. |

@@ -1,1 +1,29 @@
-<p>project-list works!</p>
+<div class="px-4 py-3">
+  <div class="border-b border-gray-100 pb-3 mb-3">
+    <h2 class="font-bold text-base text-gray-800">Mes projets</h2>
+    <p class="text-xs text-gray-400">Les projets actifs</p>
+  </div>
+
+  <div class="space-y-2">
+    @for (project of projects(); track project.id) {
+      <app-project-card
+        [project]="project"
+        (selected)="onProjectSelected($event)"
+        (deleted)="onProjectDeleted($event)" />
+    } @empty {
+      <div class="text-center py-8 text-gray-400">
+        <p class="text-3xl mb-2">📂</p>
+        <p class="text-sm">Aucun projets</p>
+        <p class="text-xs">Créez votre premier projet.</p>
+      </div>
+    }
+  </div>
+
+  <button
+    class="w-full mt-3 border-2 border-dashed border-gray-300 rounded-lg p-3
+           text-center hover:border-teal-400 hover:bg-teal-50 transition-colors"
+    (click)="navigateToCreate()">
+    <span class="text-lg">➕</span>
+    <span class="text-xs text-gray-500 font-medium block">Nouveau projet</span>
+  </button>
+</div>

@@ -1,0 +1,30 @@
+<article
+  class="bg-white rounded-lg border border-gray-200 border-l-4 p-3 shadow-sm
+         cursor-pointer hover:shadow-md transition-shadow"
+  [style.border-left-color]="project().color"
+  (click)="onSelect()"
+  (keyup.enter)="onSelect()"
+  tabindex="0"
+  role="button"
+  [attr.aria-label]="'Open project ' + project().name">
+
+  <div class="flex items-center gap-2 mb-1.5">
+    <span class="text-lg" aria-hidden="true">{{ project().icon }}</span>
+    <h3 class="font-semibold text-sm text-gray-800">{{ project().name }}</h3>
+
+    <button
+      class="ml-auto text-gray-300 hover:text-red-500 transition-colors"
+      (click)="onDelete($event)"
+      [attr.aria-label]="'Delete project ' + project().name">
+      ✕
+    </button>
+  </div>
+
+  @if (project().description) {
+    <p class="text-xs text-gray-500 ml-7 mb-1">{{ project().description }}</p>
+  }
+
+  <div class="text-xs text-gray-400 ml-7">
+    Created {{ project().createdAt | date:'mediumDate' }}
+  </div>
+</article>

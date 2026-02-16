@@ -1,1 +1,102 @@
-<p>project-form works!</p>
+<div class="px-4 py-3">
+  <div class="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
+    <button
+      class="text-xs text-gray-500 hover:text-gray-700"
+      (click)="onCancel()">
+      ✕ Annuler
+    </button>
+    <h2 class="font-semibold text-sm text-gray-800">Nouveau projet</h2>
+    <button
+      class="text-xs font-medium"
+      [class]="projectForm.valid ? 'text-teal-600 hover:text-teal-700' : 'text-gray-300'"
+      [disabled]="projectForm.invalid"
+      (click)="onSubmit()">
+      Créer
+    </button>
+  </div>
+
+  <form [formGroup]="projectForm" (ngSubmit)="onSubmit()" class="space-y-4">
+    <!-- Name -->
+    <div>
+      <label for="project-name" class="text-xs font-medium text-gray-600 block mb-1">
+        Nom du projet *
+      </label>
+      <input
+        id="project-name"
+        formControlName="name"
+        type="text"
+        placeholder="Veille Cybersécurité"
+        class="w-full bg-gray-100 rounded-lg px-3 py-2.5 text-xs text-gray-700
+               focus:outline-none focus:ring-2 focus:ring-teal-400 focus:bg-white"
+        maxlength="50" />
+      @if (projectForm.get('name')?.hasError('required') && projectForm.get('name')?.touched) {
+        <p class="text-xs text-red-500 mt-1">Le nom est obligatoire</p>
+      }
+    </div>
+
+    <!-- Description -->
+    <div>
+      <label for="project-desc" class="text-xs font-medium text-gray-600 block mb-1">
+        Description (optionnel)
+      </label>
+      <textarea
+        id="project-desc"
+        formControlName="description"
+        placeholder="Suivi des menaces et vulnérabilités..."
+        rows="3"
+        class="w-full bg-gray-100 rounded-lg px-3 py-2.5 text-xs text-gray-700
+               focus:outline-none focus:ring-2 focus:ring-teal-400 focus:bg-white resize-none"
+        maxlength="200">
+      </textarea>
+    </div>
+
+    <!-- Icon picker -->
+    <div>
+      <span id="icon-label" class="text-xs font-medium text-gray-600 block mb-1">Icône</span>
+      <div class="flex gap-2" role="radiogroup" aria-labelledby="icon-label">
+        @for (icon of icons; track icon) {
+          <button
+            type="button"
+            class="w-9 h-9 rounded-lg flex items-center justify-center text-lg transition-all"
+            [class]="icon === selectedIcon
+              ? 'bg-teal-100 ring-2 ring-teal-400'
+              : 'bg-gray-100 hover:bg-gray-200'"
+            (click)="selectIcon(icon)"
+            [attr.aria-label]="'Select icon ' + icon"
+            [attr.aria-checked]="icon === selectedIcon"
+            role="radio">
+            {{ icon }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- Color picker -->
+    <div>
+      <span id="color-label" class="text-xs font-medium text-gray-600 block mb-1">Couleur</span>
+      <div class="flex gap-2" role="radiogroup" aria-labelledby="color-label">
+        @for (color of colors; track color) {
+          <button
+            type="button"
+            class="w-8 h-8 rounded-full transition-all"
+            [style.background-color]="color"
+            [class]="color === selectedColor
+              ? 'ring-2 ring-offset-2 ring-gray-800 scale-110'
+              : 'hover:scale-105'"
+            (click)="selectColor(color)"
+            [attr.aria-label]="'Select color ' + color"
+            [attr.aria-checked]="color === selectedColor"
+            role="radio">
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- Tip -->
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+      <p class="text-xs text-amber-700">
+        💡 Tu pourras ajouter tes sources à l'étape suivante
+      </p>
+    </div>
+  </form>
+</div>

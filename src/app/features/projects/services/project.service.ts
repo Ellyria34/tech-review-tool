@@ -27,11 +27,16 @@ export class ProjectService {
 
   /** Create a new project and persist it. */
   create(data: Pick<ReviewProject, 'name' | 'description' | 'icon' | 'color'>): ReviewProject {
+    const name = data.name.trim();
+    if (!name) {
+      throw new Error('Project name is required');
+    }
+
     const now = new Date().toISOString();
     const project: ReviewProject = {
       id: crypto.randomUUID(),
-      name: data.name,
-      description: data.description,
+      name,
+      description: data.description.trim(),
       icon: data.icon,
       color: data.color,
       createdAt: now,

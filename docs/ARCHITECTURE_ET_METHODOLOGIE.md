@@ -110,23 +110,30 @@ Chaque entité porte un `projectId` — c'est le pattern **Multi-Tenant**. En An
 ```
 /projects                    → Liste des projets (page d'accueil)
 /projects/new                → Créer un projet
-/projects/:id                → Dashboard du projet
+/projects/:id                → Dashboard du projet (workspace)
+/projects/:id/edit           → Modifier un projet
 /projects/:id/articles       → Articles du projet
 /projects/:id/sources        → Sources du projet
 /projects/:id/history        → Historique des générations
 ```
 
-Ce routing imbriqué utilise les **children routes** d'Angular avec un **resolver** qui charge le projet actif avant de rendre les sous-routes.
+Ce routing utilise le **lazy loading** (`loadComponent`) pour charger chaque composant à la demande. L'ordre des routes est important : les routes spécifiques (`/new`) doivent précéder les routes paramétrées (`/:id`).
 
 ### 3.3 Composants Angular prévus
 
-**Nouveaux composants (multi-projets)** :
+**Composants projets (implémentés)** :
+
+| Wireframe | Composant Angular | Dossier | Statut |
+|---|---|---|---|
+| Liste des projets | ProjectList | features/projects/components/ | ✅ |
+| Carte projet | ProjectCard | features/projects/components/ | ✅ |
+| Formulaire création/édition | ProjectForm | features/projects/components/ | ✅ |
+| Dashboard projet | ProjectWorkspace | features/projects/components/ | ✅ |
+
+**Composants à venir** :
 
 | Wireframe | Composant Angular | Dossier |
 |---|---|---|
-| Liste des projets | ProjectListComponent | features/projects/ |
-| Carte projet | ProjectCardComponent | features/projects/ |
-| Formulaire création | ProjectFormComponent | features/projects/ |
 | Barre contexte projet | ProjectContextBarComponent | core/ |
 | Sélecteur rapide | ProjectSwitcherComponent | core/ |
 | Historique générations | HistoryListComponent | features/history/ |
@@ -208,7 +215,7 @@ src/
 │   │   └── interceptors/
 │   ├── features/              # Domaines fonctionnels
 │   │   ├── projects/          # CRUD projets
-│   │   │   ├── components/    # project-list, project-card, project-form
+│   │   │   ├── components/    # project-list, project-card, project-form, project-workspace
 │   │   │   └── services/      # project.service.ts (Signals + localStorage)
 │   │   ├── articles/          # Liste, filtres, sélection
 │   │   ├── sources/           # Gestion des sources RSS

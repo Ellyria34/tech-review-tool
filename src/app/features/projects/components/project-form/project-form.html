@@ -5,13 +5,15 @@
       (click)="onCancel()">
       ✕ Annuler
     </button>
-    <h2 class="font-semibold text-sm text-gray-800">Nouveau projet</h2>
+    <h2 class="font-semibold text-sm text-gray-800">
+      {{ isEditMode ? 'Modifier le projet' : 'Nouveau projet' }}
+    </h2>
     <button
       class="text-xs font-medium"
       [class]="projectForm.valid ? 'text-teal-600 hover:text-teal-700' : 'text-gray-300'"
       [disabled]="projectForm.invalid"
       (click)="onSubmit()">
-      Créer
+      {{ isEditMode ? 'Enregistrer' : 'Créer' }}
     </button>
   </div>
 

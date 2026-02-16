@@ -22,9 +22,8 @@ export class ProjectList {
   readonly projects = this.projectService.projects;
 
   onProjectSelected(project: ReviewProject): void {
-    // TODO: navigate to project workspace (Step 2.6)
-    console.log('Selected:', project.name);
-  }
+      this.router.navigate(['/projects', project.id]);
+    }
 
   onProjectDeleted(project: ReviewProject): void {
     this.projectService.delete(project.id);

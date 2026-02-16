@@ -53,9 +53,10 @@ tech-review-tool/
 │   │   │   ├── history/                # Generation history (planned)
 │   │   │   ├── projects/               # Project management
 │   │   │   │   ├── components/
-│   │   │   │   │   ├── project-card/   # Single project card (input/output)
-│   │   │   │   │   ├── project-form/   # Creation form (Reactive Forms)
-│   │   │   │   │   └── project-list/   # Project list (home screen)
+│   │   │   │   │   ├── project-card/      # Single project card (input/output)
+│   │   │   │   │   ├── project-form/      # Create/edit form (Reactive Forms)
+│   │   │   │   │   ├── project-list/      # Project list (home screen)
+│   │   │   │   │   └── project-workspace/ # Project dashboard (stats, actions)
 │   │   │   │   └── services/
 │   │   │   │       └── project.service.ts  # CRUD + Signals + localStorage
 │   │   │   └── sources/                # RSS source management (planned)

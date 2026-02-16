@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { ProjectService } from '../../services/project.service';
 
@@ -22,8 +22,8 @@ const PROJECT_COLORS = [
 ];
 
 /**
- * Form to create a new review project.
- * Uses Angular Reactive Forms for validation and data handling.
+ * Form to create or edit a review project.
+ * Detects mode from the route: /projects/new = create, /projects/:id/edit = edit.
  */
 @Component({
   selector: 'app-project-form',
@@ -32,21 +32,42 @@ const PROJECT_COLORS = [
   styleUrl: './project-form.scss',
 })
 export class ProjectForm {
-  private readonly formBuilder  = inject(FormBuilder);
+  private readonly formBuilder = inject(FormBuilder);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly projectService = inject(ProjectService);
 
   /** Expose icon and color options to the template. */
   readonly icons = PROJECT_ICONS;
   readonly colors = PROJECT_COLORS;
 
+  /** ID of the project being edited (null if creating). */
+  readonly editId = this.route.snapshot.paramMap.get('id');
+
+  /** True if we are editing an existing project. */
+  readonly isEditMode = !!this.editId;
+
   /** Reactive form definition with validation rules. */
-  readonly projectForm = this.formBuilder .group({
+  readonly projectForm = this.formBuilder.group({
     name: ['', [Validators.required, Validators.maxLength(50)]],
     description: ['', Validators.maxLength(200)],
     icon: [PROJECT_ICONS[0].value, Validators.required],
     color: [PROJECT_COLORS[0], Validators.required],
   });
+
+  constructor() {
+    if (this.isEditMode) {
+      const project = this.projectService.getById(this.editId!);
+      if (project) {
+        this.projectForm.patchValue({
+          name: project.name,
+          description: project.description,
+          icon: project.icon,
+          color: project.color,
+        });
+      }
+    }
+  }
 
   /** Currently selected icon (for visual highlight). */
   get selectedIcon(): string {
@@ -60,7 +81,7 @@ export class ProjectForm {
 
   /** Select an icon and update the form. */
   selectIcon(icon: string): void {
-    this.projectForm.patchValue({ icon});
+    this.projectForm.patchValue({ icon });
   }
 
   /** Select a color and update the form. */
@@ -68,25 +89,35 @@ export class ProjectForm {
     this.projectForm.patchValue({ color });
   }
 
-  /** Submit the form — create the project and navigate back. */
+  /** Submit the form — create or update, then navigate back. */
   onSubmit(): void {
-      if (this.projectForm.invalid) {
-        return;
-      }
-
-      const { name, description, icon, color } = this.projectForm.getRawValue();
-      this.projectService.create({
-        name: name ?? '',
-        description: description ?? '',
-        icon: icon ?? PROJECT_ICONS[0].value,
-        color: color ?? PROJECT_COLORS[0],
-      });
-
-      this.router.navigate(['/projects']);
+    if (this.projectForm.invalid) {
+      return;
     }
 
-  /** Cancel and go back to project list. */
+    const { name, description, icon, color } = this.projectForm.getRawValue();
+    const data = {
+      name: name ?? '',
+      description: description ?? '',
+      icon: icon ?? PROJECT_ICONS[0].value,
+      color: color ?? PROJECT_COLORS[0],
+    };
+
+    if (this.isEditMode) {
+      this.projectService.update(this.editId!, data);
+      this.router.navigate(['/projects', this.editId]);
+    } else {
+      this.projectService.create(data);
+      this.router.navigate(['/projects']);
+    }
+  }
+
+  /** Cancel and go back. */
   onCancel(): void {
-    this.router.navigate(['/projects']);
+    if (this.isEditMode) {
+      this.router.navigate(['/projects', this.editId]);
+    } else {
+      this.router.navigate(['/projects']);
+    }
   }
 }

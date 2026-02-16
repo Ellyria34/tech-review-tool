@@ -20,4 +20,18 @@ export const routes: Routes = [
         m => m.ProjectForm
       ),
   },
+  {
+    path: 'projects/:id',
+    loadComponent: () =>
+      import('./features/projects/components/project-workspace/project-workspace').then(
+        m => m.ProjectWorkspace
+      ),
+  },
+  {
+    path: 'projects/:id/edit',
+    loadComponent: () =>
+      import('./features/projects/components/project-form/project-form').then(
+        m => m.ProjectForm
+      ),
+  },
 ];

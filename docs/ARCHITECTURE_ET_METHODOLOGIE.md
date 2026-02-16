@@ -3,7 +3,7 @@
 > **Nom du projet** : TechReviewTool — Agrégateur intelligent de veille technologique
 > **Date de création** : 14 février 2026
 > **Auteur** : Ellyria34
-> **Statut** : Étape 1 terminée — Structure, outillage et App Shell en place
+> **Statut** : Étape 2 terminée — CRUD multi-projets fonctionnel avec persistance
 
 ---
 
@@ -208,12 +208,15 @@ src/
 │   │   └── interceptors/
 │   ├── features/              # Domaines fonctionnels
 │   │   ├── projects/          # CRUD projets
+│   │   │   ├── components/    # project-list, project-card, project-form
+│   │   │   └── services/      # project.service.ts (Signals + localStorage)
 │   │   ├── articles/          # Liste, filtres, sélection
 │   │   ├── sources/           # Gestion des sources RSS
 │   │   ├── ai-actions/        # Panneau IA, génération
 │   │   └── history/           # Historique des générations
 │   ├── shared/                # Composants réutilisables, pipes, directives
 │   │   ├── components/
+│   │   ├── models/            # Interfaces TypeScript (ReviewProject, Source, Article...)
 │   │   ├── pipes/
 │   │   └── directives/
 │   ├── app.ts                 # Composant racine
@@ -329,7 +332,7 @@ Pour un projet solo avec montée en compétence :
 | **0** | Conception, wireframes, document d'architecture | ✅ Terminé |
 | **0.5** | Setup : Node.js 22, Angular CLI 21, Git, GitHub | ✅ Terminé |
 | **1** | Structure projet, linting, Tailwind CSS, App Shell | ✅ Terminé |
-| **2** | Feature multi-projets (CRUD projets) | ⬜ À faire |
+| **2** | Feature multi-projets (CRUD projets) | ✅ Terminé |
 | **3** | Gestion des sources RSS par projet | ⬜ À faire |
 | **4** | Liste d'articles avec filtres (mots-clés, période) | ⬜ À faire |
 | **5** | Actions IA (synthèse, revue de presse, LinkedIn) | ⬜ À faire |

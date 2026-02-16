@@ -53,19 +53,20 @@
     <!-- Icon picker -->
     <div>
       <span id="icon-label" class="text-xs font-medium text-gray-600 block mb-1">Icône</span>
-      <div class="flex gap-2" role="radiogroup" aria-labelledby="icon-label">
-        @for (icon of icons; track icon) {
+      <div class="grid grid-cols-4 gap-2" role="radiogroup" aria-labelledby="icon-label">
+        @for (icon of icons; track icon.value) {
           <button
             type="button"
-            class="w-9 h-9 rounded-lg flex items-center justify-center text-lg transition-all"
-            [class]="icon === selectedIcon
+            class="flex flex-col items-center gap-0.5 p-2 rounded-lg transition-all"
+            [class]="icon.value === selectedIcon
               ? 'bg-teal-100 ring-2 ring-teal-400'
               : 'bg-gray-100 hover:bg-gray-200'"
-            (click)="selectIcon(icon)"
-            [attr.aria-label]="'Select icon ' + icon"
-            [attr.aria-checked]="icon === selectedIcon"
+            (click)="selectIcon(icon.value)"
+            [attr.aria-label]="icon.label"
+            [attr.aria-checked]="icon.value === selectedIcon"
             role="radio">
-            {{ icon }}
+            <span class="text-lg">{{ icon.value }}</span>
+            <span class="text-xs text-gray-500 leading-tight text-center">{{ icon.label }}</span>
           </button>
         }
       </div>

@@ -4,7 +4,16 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { ProjectService } from '../../services/project.service';
 
 /** Available icons for project creation. */
-const PROJECT_ICONS = ['🛡️', '🤖', '🎨', '☁️', '⚡', '🔬', '📊', '🧪'];
+const PROJECT_ICONS = [
+  { value: '🛡️', label: 'Cyber' },
+  { value: '🤖', label: 'IA & Machine Learning' },
+  { value: '🎨', label: 'Front-end & Design' },
+  { value: '☁️', label: 'Cloud & DevOps' },
+  { value: '⚡', label: 'Back-end & API' },
+  { value: '🔬', label: 'R&D & Veille générale' },
+  { value: '📊', label: 'Data & Analytics' },
+  { value: '🧪', label: 'Tests & Qualité' },
+];
 
 /** Available colors for project creation. */
 const PROJECT_COLORS = [
@@ -35,13 +44,13 @@ export class ProjectForm {
   readonly projectForm = this.formBuilder .group({
     name: ['', [Validators.required, Validators.maxLength(50)]],
     description: ['', Validators.maxLength(200)],
-    icon: [PROJECT_ICONS[0], Validators.required],
+    icon: [PROJECT_ICONS[0].value, Validators.required],
     color: [PROJECT_COLORS[0], Validators.required],
   });
 
   /** Currently selected icon (for visual highlight). */
   get selectedIcon(): string {
-    return this.projectForm.get('icon')!.value ?? PROJECT_ICONS[0];
+    return this.projectForm.get('icon')!.value ?? PROJECT_ICONS[0].value;
   }
 
   /** Currently selected color (for visual highlight). */
@@ -51,7 +60,7 @@ export class ProjectForm {
 
   /** Select an icon and update the form. */
   selectIcon(icon: string): void {
-    this.projectForm.patchValue({ icon });
+    this.projectForm.patchValue({ icon});
   }
 
   /** Select a color and update the form. */
@@ -69,7 +78,7 @@ export class ProjectForm {
       this.projectService.create({
         name: name ?? '',
         description: description ?? '',
-        icon: icon ?? PROJECT_ICONS[0],
+        icon: icon ?? PROJECT_ICONS[0].value,
         color: color ?? PROJECT_COLORS[0],
       });
 

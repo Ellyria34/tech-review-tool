@@ -51,11 +51,18 @@ tech-review-tool/
 │   │   │   ├── ai-actions/             # AI content generation (planned)
 │   │   │   ├── articles/               # Article listing and filters (planned)
 │   │   │   ├── history/                # Generation history (planned)
-│   │   │   ├── projects/               # Project management (planned)
+│   │   │   ├── projects/               # Project management
+│   │   │   │   ├── components/
+│   │   │   │   │   ├── project-card/   # Single project card (input/output)
+│   │   │   │   │   ├── project-form/   # Creation form (Reactive Forms)
+│   │   │   │   │   └── project-list/   # Project list (home screen)
+│   │   │   │   └── services/
+│   │   │   │       └── project.service.ts  # CRUD + Signals + localStorage
 │   │   │   └── sources/                # RSS source management (planned)
 │   │   ├── shared/
 │   │   │   ├── components/             # Reusable UI components (planned)
 │   │   │   ├── directives/             # Custom directives (planned)
+│   │   │   ├── models/                 # TypeScript interfaces (data models)
 │   │   │   └── pipes/                  # Custom pipes (planned)
 │   │   ├── app.config.ts               # Application configuration
 │   │   ├── app.html                    # Root template (App Shell)
@@ -76,6 +83,7 @@ tech-review-tool/
 ├── .editorconfig                       # Editor formatting conventions
 ├── .gitattributes                      # Line ending normalization (LF)
 ├── .gitignore                          # Files ignored by Git
+├── LICENSE                             # CC BY-NC-SA 4.0 (non-commercial)
 ├── .postcssrc.json                     # PostCSS configuration (Tailwind)
 ├── .prettierrc                         # Prettier code formatting rules
 ├── eslint.config.js                    # ESLint code quality rules
@@ -146,7 +154,7 @@ This project follows a **multi-project workspace** pattern where each review pro
 
 - [x] **Step 0** — Project setup (Angular 21, Git, GitHub)
 - [x] **Step 1** — Project structure, linting, Tailwind CSS, App Shell
-- [ ] **Step 2** — Multi-project feature (CRUD projects)
+- [x] **Step 2** — Multi-project feature (CRUD projects)
 - [ ] **Step 3** — RSS source management per project
 - [ ] **Step 4** — Article listing with filters
 - [ ] **Step 5** — AI-powered content generation
@@ -156,4 +164,4 @@ This project follows a **multi-project workspace** pattern where each review pro
 
 ## 📄 License
 
-This project is licensed under CC BY-NC-SA 4.0 — you may share and adapt it for non-commercial purposes only, with attribution and under the same license.
+This project is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) — you may share and adapt it for **non-commercial purposes only**, with attribution and under the same license.

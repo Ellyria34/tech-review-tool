@@ -78,8 +78,7 @@ tech-review-tool/
 ├── .claude/                            # AI assistant configuration (Angular best practices)
 ├── .vscode/                            # VS Code workspace settings
 ├── docs/
-│   ├── ARCHITECTURE_ET_METHODOLOGIE.md # Architecture decisions (FR)
-│   └── JOURNAL_DE_BORD.md             # Progress journal (FR)
+│   └── ARCHITECTURE_ET_METHODOLOGIE.md # Architecture decisions (FR)
 ├── public/                             # Static assets (favicon, images)
 ├── .editorconfig                       # Editor formatting conventions
 ├── .gitattributes                      # Line ending normalization (LF)
@@ -149,7 +148,6 @@ This project follows a **multi-project workspace** pattern where each review pro
 | Document | Language | Description |
 |---|---|---|
 | [ARCHITECTURE_ET_METHODOLOGIE.md](./docs/ARCHITECTURE_ET_METHODOLOGIE.md) | 🇫🇷 French | Architecture decisions, methodology, SOLID principles |
-| [JOURNAL_DE_BORD.md](./docs/JOURNAL_DE_BORD.md) | 🇫🇷 French | Day-by-day progress log for onboarding |
 
 ## 🗺️ Roadmap
 

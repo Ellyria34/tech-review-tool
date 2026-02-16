@@ -121,10 +121,12 @@ Ce routing utilise le **lazy loading** (`loadComponent`) pour charger chaque com
 
 ### 3.3 Composants Angular prévus
 
-**Composants projets (implémentés)** :
+**Composants implémentés** :
 
 | Wireframe | Composant Angular | Dossier | Statut |
 |---|---|---|---|
+| Header de l'app | Header | core/components/ | ✅ |
+| Navigation mobile | BottomNav | core/components/ | ✅ |
 | Liste des projets | ProjectList | features/projects/components/ | ✅ |
 | Carte projet | ProjectCard | features/projects/components/ | ✅ |
 | Formulaire création/édition | ProjectForm | features/projects/components/ | ✅ |
@@ -142,7 +144,6 @@ Ce routing utilise le **lazy loading** (`loadComponent`) pour charger chaque com
 
 | Wireframe | Composant Angular | Dossier |
 |---|---|---|
-| Navigation | NavigationComponent | core/ |
 | Liste d'articles | ArticleListComponent | features/articles/ |
 | Carte d'article | ArticleCardComponent | features/articles/ |
 | Barre de sélection | SelectionBarComponent | features/articles/ |

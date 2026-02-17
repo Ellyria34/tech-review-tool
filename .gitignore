@@ -19,6 +19,7 @@ yarn-error.log
 *.launch
 .settings/
 *.sublime-workspace
+.claude/
 
 # Visual Studio Code
 .vscode/*
@@ -44,4 +45,3 @@ __screenshots__/
 Thumbs.db
 
 docs/JOURNAL_DE_BORD.md
-.claude/

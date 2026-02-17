@@ -25,7 +25,7 @@
       [attr.aria-checked]="source().isActive"
       [attr.aria-label]="source().isActive ? 'Disable ' + source().name : 'Enable ' + source().name"
       role="switch"
-      (click)="toogle.emit(source()); $event.stopPropagation()"
+      (click)="toggleActive.emit(source()); $event.stopPropagation()"
     >
       <span
         class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transform transition-transform"
@@ -60,7 +60,7 @@
   <div class="flex justify-end gap-2">
     <button
       class="text-xs text-gray-400 hover:text-teal-600 transition-colors px-2 py-1 rounded hover:bg-gray-50"
-      (click)="toggleActive.emit(source()); $event.stopPropagation()"
+      (click)="edit.emit(source()); $event.stopPropagation()"
       [attr.aria-label]="'Edit ' + source().name"
     >
       ✏️ Modifier

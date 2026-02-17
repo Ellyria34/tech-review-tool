@@ -1,1 +1,49 @@
-<p>source-list works!</p>
+<div class="px-4 py-4 max-w-lg mx-auto">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-4">
+    <div>
+        <a 
+            [routerLink]="'/projects/' + projectId"
+            class="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+            ← Retour au projet
+        </a>
+    <h1 class="text-lg font-bold text-gray-800 mt-1">Sources</h1>
+    <p class="text-xs text-gray-500">
+        {{ activeCount() }} active(s) sur {{ totalCount() }}
+      </p>
+    </div>
+    <a 
+        [routerLink]="'/projects/' + projectId + '/sources/new'"
+        class="px-3 py-2 bg-teal-600 text-white rounded-lg text-xs font-medium
+             hover:bg-teal-700 transition-colors">
+        ➕ Ajouter
+    </a>
+  </div>
+
+  <!-- Source cards -->
+  <div class="space-y-3">
+    @for (source of sources(); track source.id) {
+      <app-source-card
+        [source]="source"
+        (toggleActive)="onToggle($event)"
+        (edit)="onEdit($event)"
+        (delete)="onDelete($event)"
+      />
+    } @empty {
+      <div class="text-center py-12">
+        <div class="text-4xl mb-3">📡</div>
+        <p class="text-sm text-gray-500 mb-1">Aucune source RSS</p>
+        <p class="text-xs text-gray-400 mb-4">
+          Ajoute des sources pour commencer à agréger des articles
+        </p>
+        <a
+          [routerLink]="'/projects/' + projectId + '/sources/new'"
+          class="inline-block px-4 py-2 bg-teal-600 text-white rounded-lg text-sm
+             font-medium hover:bg-teal-700 transition-colors">
+          ➕ Ajouter une source
+        </a>
+      </div>
+    }
+  </div>
+</div>

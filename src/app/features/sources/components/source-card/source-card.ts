@@ -11,6 +11,7 @@ import { getCategoryLabel, getCategoryColor, } from '../../../../shared/data/cat
 export class SourceCard {
   // Data received from parent — required means parent MUST provide it
   readonly source = input.required<Source>();
+  readonly toggleActive = output<Source>();
 
   // Events sent to parent when user interacts
   readonly toogle = output<Source>();

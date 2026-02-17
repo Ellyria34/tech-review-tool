@@ -1,6 +1,7 @@
 import { Component, inject, computed } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ProjectService } from '../../services/project.service';
+import { SourceService } from '../../../sources/services/source.service';
 
 /**
  * Workspace for a single project — shows project details and will host
@@ -16,12 +17,17 @@ export class ProjectWorkspace {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly projectService = inject(ProjectService);
+  private readonly sourceService = inject(SourceService);
 
   /** Get the project ID from the URL parameter. */
   private readonly projectId = this.route.snapshot.paramMap.get('id') ?? '';
 
   /** Reactive project — auto-updates if project data changes. */
   readonly project = computed(() => this.projectService.getById(this.projectId));
+
+  /** Source count for this project (reactive). */
+  readonly sourceCount = this.sourceService.countByProject(this.projectId);
+  readonly activeSourceCount = this.sourceService.countActiveByProject(this.projectId);
 
   /** Navigate to edit form. */
   onEdit(): void {

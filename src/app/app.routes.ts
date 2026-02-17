@@ -34,4 +34,27 @@ export const routes: Routes = [
         m => m.ProjectForm
       ),
   },
+  {
+    path: 'projects/:id/sources',
+    loadComponent: () =>
+      import(
+        './features/sources/components/source-list/source-list'
+      ).then((m) => m.SourceList),
+  },
+  {
+    path: 'projects/:id/sources/new',
+    loadComponent: () =>
+      import(
+        './features/sources/components/source-form/source-form'
+      ).then((m) => m.SourceForm),
+  },
+  {
+    path: 'projects/:id/sources/:sourceId/edit',
+    loadComponent: () =>
+      import(
+        './features/sources/components/source-form/source-form'
+      ).then((m) => m.SourceForm),
+  },
 ];
+
+

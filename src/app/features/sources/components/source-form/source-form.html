@@ -1,1 +1,113 @@
-<p>source-form works!</p>
+<div class="px-4 py-4 max-w-lg mx-auto">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
+    <button
+      class="text-xs text-gray-500 hover:text-gray-700"
+      (click)="onCancel()">
+      ✕ Annuler
+    </button>
+    <h2 class="font-semibold text-sm text-gray-800">
+      {{ isEditMode ? 'Modifier la source' : 'Ajouter une source' }}
+    </h2>
+    <button
+      class="text-xs font-medium"
+      [class]="form.valid ? 'text-teal-600 hover:text-teal-700' : 'text-gray-300'"
+      [disabled]="form.invalid"
+      (click)="onSubmit()">
+      {{ isEditMode ? 'Enregistrer' : 'Ajouter' }}
+    </button>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
+
+    <!-- Name -->
+    <div>
+      <label for="source-name" class="text-xs font-medium text-gray-600 block mb-1">
+        Nom de la source *
+      </label>
+      <input
+        id="source-name"
+        type="text"
+        formControlName="name"
+        placeholder="Ex : BleepingComputer"
+        class="w-full bg-gray-100 rounded-lg px-3 py-2.5 text-sm
+               focus:outline-none focus:ring-2 focus:ring-teal-400 focus:bg-white"
+        [class.border-red-500]="form.get('name')?.invalid && form.get('name')?.touched"
+        maxlength="100" />
+      @if (form.get('name')?.invalid && form.get('name')?.touched) {
+        <p class="text-xs text-red-500 mt-1">
+          @if (form.get('name')?.hasError('required')) {
+            Le nom est obligatoire
+          } @else if (form.get('name')?.hasError('maxlength')) {
+            100 caractères maximum
+          }
+        </p>
+      }
+    </div>
+
+    <!-- URL -->
+    <div>
+      <label for="source-url" class="text-xs font-medium text-gray-600 block mb-1">
+        URL du flux RSS *
+      </label>
+      <input
+        id="source-url"
+        type="url"
+        formControlName="url"
+        placeholder="https://www.example.com/feed/"
+        class="w-full bg-gray-100 rounded-lg px-3 py-2.5 text-sm font-mono
+               focus:outline-none focus:ring-2 focus:ring-teal-400 focus:bg-white"
+        [class.border-red-500]="form.get('url')?.invalid && form.get('url')?.touched" />
+      @if (form.get('url')?.invalid && form.get('url')?.touched) {
+        <p class="text-xs text-red-500 mt-1">
+          @if (form.get('url')?.hasError('required')) {
+            L'URL est obligatoire
+          } @else if (form.get('url')?.hasError('pattern')) {
+            L'URL doit commencer par http:// ou https://
+          }
+        </p>
+      }
+    </div>
+
+    <!-- Category -->
+    <div>
+      <label for="source-category" class="text-xs font-medium text-gray-600 block mb-1">
+        Catégorie *
+      </label>
+      <select
+        id="source-category"
+        formControlName="category"
+        class="w-full bg-gray-100 rounded-lg px-3 py-2.5 text-sm
+               focus:outline-none focus:ring-2 focus:ring-teal-400 focus:bg-white">
+        @for (cat of categories; track cat[0]) {
+          <option [value]="cat[0]">{{ cat[1].label }}</option>
+        }
+      </select>
+    </div>
+
+    <!-- Description -->
+    <div>
+      <label for="source-desc" class="text-xs font-medium text-gray-600 block mb-1">
+        Description
+        <span class="text-gray-400 font-normal">(optionnel)</span>
+      </label>
+      <textarea
+        id="source-desc"
+        formControlName="description"
+        rows="2"
+        placeholder="Brève description de cette source..."
+        class="w-full bg-gray-100 rounded-lg px-3 py-2.5 text-sm
+               focus:outline-none focus:ring-2 focus:ring-teal-400 focus:bg-white resize-none"
+        maxlength="200">
+      </textarea>
+    </div>
+
+    <!-- Tip -->
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+      <p class="text-xs text-amber-700">
+        💡 Tu pourras trouver l'URL RSS d'un site en cherchant "/feed" ou "/rss" dans son URL
+      </p>
+    </div>
+  </form>
+</div>

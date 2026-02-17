@@ -1,30 +1,33 @@
 @if (project(); as p) {
   <!-- Project header -->
-  <div class="px-4 py-3 border-b" [style.background-color]="p.color + '15'">
-    <div class="flex items-center justify-between mb-2">
-      <a routerLink="/projects" class="text-xs text-gray-500 hover:text-gray-700">
-        ← Projets
+  <div class="px-4 py-3 border-y" [style.background-color]="p.color + '15'">
+    <div class="flex items-start gap-3">
+      <a routerLink="/projects" class="text-gray-400 hover:text-gray-600 text-lg leading-tight mt-1">
+        ←
       </a>
-      <div class="flex gap-2">
-        <button
-          class="text-xs text-gray-500 hover:text-teal-600"
-          (click)="onEdit()">
-          ✏️ Modifier
-        </button>
-        <button
-          class="text-xs text-gray-500 hover:text-red-500"
-          (click)="onDelete()">
-          🗑️ Supprimer
-        </button>
-      </div>
-    </div>
-    <div class="flex items-center gap-2">
-      <span class="text-xl">{{ p.icon }}</span>
-      <div>
-        <h2 class="font-bold text-sm text-gray-800">{{ p.name }}</h2>
+      <div class="flex-1 min-w-0">
+        <h2 class="font-bold text-base text-gray-800 truncate">{{ p.name }}</h2>
         @if (p.description) {
-          <p class="text-xs text-gray-500">{{ p.description }}</p>
+          <p class="text-xs pt-1 text-gray-500 line-clamp-2">{{ p.description }}</p>
         }
+      </div>
+      <div class="flex items-center gap-0.5 -mt-0.5">
+        <button
+          class="w-7 h-7 flex items-center justify-center rounded-lg text-sm
+                 text-gray-400 hover:text-teal-600 hover:bg-white/60 transition-colors"
+          title="Modifier le projet"
+          [attr.aria-label]="'Modifier ' + p.name"
+          (click)="onEdit()">
+          ✏️
+        </button>
+        <button
+          class="w-7 h-7 flex items-center justify-center rounded-lg text-sm
+                 text-gray-400 hover:text-red-600 hover:bg-red-50/60 transition-colors"
+          title="Supprimer le projet"
+          [attr.aria-label]="'Supprimer ' + p.name"
+          (click)="onDelete()">
+          🗑️
+        </button>
       </div>
     </div>
   </div>

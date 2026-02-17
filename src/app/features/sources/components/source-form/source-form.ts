@@ -64,14 +64,14 @@ export class SourceForm implements OnInit {
     const data = this.form.getRawValue();
 
     if (this.isEditMode && this.sourceId) {
-      this.sourceService.update(this.sourceId, {
+      this.sourceService.updateSource(this.sourceId, {
         name: data.name ?? '',
         url: data.url ?? '',
         category: data.category ?? 'general',
         description: data.description ?? '',
       });
     } else {
-      this.sourceService.create(this.projectId, {
+      this.sourceService.createAndLink(this.projectId, {
         name: data.name ?? '',
         url: data.url ?? '',
         category: data.category ?? 'general',

@@ -1,73 +1,89 @@
 import { Injectable, computed, signal } from '@angular/core';
-import { Source, CreateSourceData } from '../../../shared/models';
+import { Source, CreateSourceData, ProjectSource, LinkedSource } from '../../../shared/models';
 
-// All sources are stored under this key in localStorage
-const STORAGE_KEY = 'techreviewtool_sources';
+// Two separate storage keys — catalog and liaisons
+const SOURCES_KEY = 'techreviewtool_sources';
+const PROJECT_SOURCES_KEY = 'techreviewtool_project_sources';
 
 @Injectable({
   providedIn: 'root',
 })
 export class SourceService {
-  // Only the service can modify this data
-  private readonly _sources = signal<Source[]>(this.loadFromStorage());
 
-  // Components read sources through this (read-only)
+  // Global source catalog (shared across all projects)
+  private readonly _sources = signal<Source[]>(this.loadFromStorage(SOURCES_KEY));
+
+  // Project-source liaisons (which project uses which source)
+  private readonly _projectSources = signal<ProjectSource[]>(this.loadFromStorage(PROJECT_SOURCES_KEY));
+
+  // Public read-only accessors
   readonly sources = this._sources.asReadonly();
+  readonly projectSources = this._projectSources.asReadonly();
 
-  // Load sources from localStorage at startup.
-  private loadFromStorage(): Source[] {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? (JSON.parse(raw) as Source[]) : [];
-    } catch {
-      // Corrupted JSON — start fresh (better to lose data than crash)
-      console.error('Failed to load sources from localStorage');
-      return [];
-    }
-  }
+  // ═══ Read methods ═══
 
-  // Save all sources to localStorage.
-  private saveToStorage(): void {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this._sources()));
-    } catch (e) {
-      // localStorage can be full (~5-10 MB depending on browser)
-      console.error('Failed to save sources to localStorage', e);
-    }
-  }
-
-  //Get all sources for a project (reactive — auto-updates the UI).
+  /** Get all sources linked to a project (with their active status). */
   getByProject(projectId: string) {
-    return computed(() =>
-      this._sources().filter((s) => s.projectId === projectId)
-    );
+    return computed(() => {
+      const liaisons = this._projectSources().filter(
+        (ps) => ps.projectId === projectId
+      );
+
+      return liaisons
+        .map((liaison) => {
+          const source = this._sources().find((s) => s.id === liaison.sourceId);
+          if (!source) return null;
+
+          return {
+            ...source,
+            isActive: liaison.isActive,
+            linkId: liaison.id,
+          } as LinkedSource;
+        })
+        .filter((s) => s !== null);
+    });
   }
 
-  // Count active sources for a project.
+  /** Count active sources for a project. */
   countActiveByProject(projectId: string) {
     return computed(
       () =>
-        this._sources().filter(
-          (s) => s.projectId === projectId && s.isActive
+        this._projectSources().filter(
+          (ps) => ps.projectId === projectId && ps.isActive
         ).length
     );
   }
 
-  // Counts all sources for a project (active + inactive).
+  /** Count all sources for a project. */
   countByProject(projectId: string) {
     return computed(
-      () => this._sources().filter((s) => s.projectId === projectId).length
+      () =>
+        this._projectSources().filter(
+          (ps) => ps.projectId === projectId
+        ).length
     );
   }
 
-  // Find a source by its ID.
+  /** Find a source in the catalog by ID. */
   getById(sourceId: string): Source | undefined {
     return this._sources().find((s) => s.id === sourceId);
   }
 
-  // Add a new source to a project.
-  create(projectId: string, data: CreateSourceData): Source {
-    // Validation — defense in depth
+  /** Get sources NOT yet linked to a project (for "add from catalog"). */
+  getAvailableForProject(projectId: string) {
+    return computed(() => {
+      const linkedIds = this._projectSources()
+        .filter((ps) => ps.projectId === projectId)
+        .map((ps) => ps.sourceId);
+
+      return this._sources().filter((s) => !linkedIds.includes(s.id));
+    });
+  }
+
+  // ═══ Catalog methods (global sources) ═══
+
+  /** Add a new source to the global catalog. */
+  createSource(data: CreateSourceData): Source {
     const trimmedName = data.name.trim();
     if (!trimmedName) {
       throw new Error('Source name cannot be empty');
@@ -84,28 +100,24 @@ export class SourceService {
 
     const newSource: Source = {
       id: crypto.randomUUID(),
-      projectId,
       name: trimmedName,
       url: trimmedUrl,
       category: data.category,
       description: data.description?.trim() || undefined,
-      isActive: true,
       createdAt: new Date().toISOString(),
     };
 
-    // Spread creates a new array so the signal detects the change
     this._sources.update((current) => [...current, newSource]);
-    this.saveToStorage();
+    this.saveToStorage(SOURCES_KEY, this._sources());
 
     return newSource;
   }
 
-  // Update some fields of an existing source.
-  update(sourceId: string, changes: Partial<CreateSourceData>): void {
+  /** Update a source in the catalog. */
+  updateSource(sourceId: string, changes: Partial<CreateSourceData>): void {
     this._sources.update((current) =>
       current.map((source) => {
         if (source.id !== sourceId) return source;
-
         return {
           ...source,
           ...changes,
@@ -116,37 +128,99 @@ export class SourceService {
       })
     );
 
-    this.saveToStorage();
+    this.saveToStorage(SOURCES_KEY, this._sources());
   }
 
-  // Toggle a source on/off.
-  toggleActive(sourceId: string): void {
+  /** Delete a source from the catalog and all its liaisons. */
+  deleteSource(sourceId: string): void {
     this._sources.update((current) =>
-      current.map((source) =>
-        source.id === sourceId
-          ? { ...source, isActive: !source.isActive }
-          : source
+      current.filter((s) => s.id !== sourceId)
+    );
+
+    this._projectSources.update((current) =>
+      current.filter((ps) => ps.sourceId !== sourceId)
+    );
+
+    this.saveToStorage(SOURCES_KEY, this._sources());
+    this.saveToStorage(PROJECT_SOURCES_KEY, this._projectSources());
+  }
+
+  // ═══ Liaison methods (project ↔ source) ═══
+
+  /** Link a source to a project. */
+  linkToProject(projectId: string, sourceId: string): ProjectSource {
+    const link: ProjectSource = {
+      id: crypto.randomUUID(),
+      projectId,
+      sourceId,
+      isActive: true,
+      addedAt: new Date().toISOString(),
+    };
+
+    this._projectSources.update((current) => [...current, link]);
+    this.saveToStorage(PROJECT_SOURCES_KEY, this._projectSources());
+
+    return link;
+  }
+
+  /** Unlink a source from a project (does NOT delete the source). */
+  unlinkFromProject(linkId: string): void {
+    this._projectSources.update((current) =>
+      current.filter((ps) => ps.id !== linkId)
+    );
+
+    this.saveToStorage(PROJECT_SOURCES_KEY, this._projectSources());
+  }
+
+  /** Toggle active status for a source in a specific project. */
+  toggleActive(linkId: string): void {
+    this._projectSources.update((current) =>
+      current.map((ps) =>
+        ps.id === linkId
+          ? { ...ps, isActive: !ps.isActive }
+          : ps
       )
     );
 
-    this.saveToStorage();
+    this.saveToStorage(PROJECT_SOURCES_KEY, this._projectSources());
   }
 
-  // Deletes a source.
-  delete(sourceId: string): void {
-    this._sources.update((current) =>
-      current.filter((source) => source.id !== sourceId)
+  /** Remove all liaisons for a project (when project is deleted).
+   *  Sources stay in the catalog. */
+  unlinkAllFromProject(projectId: string): void {
+    this._projectSources.update((current) =>
+      current.filter((ps) => ps.projectId !== projectId)
     );
 
-    this.saveToStorage();
+    this.saveToStorage(PROJECT_SOURCES_KEY, this._projectSources());
   }
 
-  // Delete all sources of a project (when the project is deleted).
-  deleteByProject(projectId: string): void {
-    this._sources.update((current) =>
-      current.filter((source) => source.projectId !== projectId)
-    );
+  // ═══ Convenience: create + link in one step ═══
 
-    this.saveToStorage();
+  /** Create a new source AND link it to a project. */
+  createAndLink(projectId: string, data: CreateSourceData): Source {
+    const source = this.createSource(data);
+    this.linkToProject(projectId, source.id);
+    return source;
+  }
+
+  // ═══ localStorage persistence ═══
+
+  private loadFromStorage<T>(key: string): T[] {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? (JSON.parse(raw) as T[]) : [];
+    } catch {
+      console.error(`Failed to load ${key} from localStorage`);
+      return [];
+    }
+  }
+
+  private saveToStorage<T>(key: string, data: T[]): void {
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+    } catch (e) {
+      console.error(`Failed to save ${key} to localStorage`, e);
+    }
   }
 }

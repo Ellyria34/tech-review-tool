@@ -1,9 +1,8 @@
 // source.model.ts — Data model for RSS sources
 //
-// Each source belongs to ONE project (projectId = foreign key).
-// Multi-Tenant pattern: all queries filter by project.
+// A Source is a GLOBAL catalog entry — it does not belong to a project.
+// Projects link to sources through ProjectSource (many-to-many).
 
-// Union type for categories — zero runtime cost (erased at compilation)
 export type SourceCategory =
   | 'cybersecurity'
   | 'ai'
@@ -13,17 +12,30 @@ export type SourceCategory =
   | 'cloud'
   | 'general';
 
+// Global source catalog — no projectId
 export interface Source {
   id: string;
-  projectId: string;
   name: string;
   url: string;
   category: SourceCategory;
-  isActive: boolean;
   description?: string;
-  createdAt: string;          // ISO 8601 date string (JSON-safe)
+  createdAt: string;
 }
 
-// DTO for the creation form — excludes id and projectId
-// (generated/injected by the service)
+// Junction table — links a source to a project
+export interface ProjectSource {
+  id: string;
+  projectId: string;
+  sourceId: string;
+  isActive: boolean;
+  addedAt: string;
+}
+
+// Source enriched with project-specific info (returned by getByProject)
+export interface LinkedSource extends Source {
+  isActive: boolean;
+  linkId: string;
+}
+
+// DTO for creating a new source in the catalog
 export type CreateSourceData = Pick<Source, 'name' | 'url' | 'category' | 'description'>;

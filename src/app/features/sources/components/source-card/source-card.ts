@@ -1,6 +1,7 @@
 import { Component, input, output } from '@angular/core';
-import {Source } from '../../../../shared/models';
 import { getCategoryLabel, getCategoryColor, } from '../../../../shared/data/categories';
+import { LinkedSource } from '../../../../shared/models';
+
 
 @Component({
   selector: 'app-source-card',
@@ -10,13 +11,12 @@ import { getCategoryLabel, getCategoryColor, } from '../../../../shared/data/cat
 })
 export class SourceCard {
   // Data received from parent — required means parent MUST provide it
-  readonly source = input.required<Source>();
-  readonly toggleActive = output<Source>();
+  readonly source = input.required<LinkedSource>();
+  readonly toggleActive = output<LinkedSource>();
 
   // Events sent to parent when user interacts
-  readonly toogle = output<Source>();
-  readonly edit = output<Source>();
-  readonly delete = output<Source>();
+  readonly edit = output<LinkedSource>();
+  readonly delete = output<LinkedSource>();
 
   // Get display label for the category (e.g., 'cybersecurity' → 'Cybersécurité'). */
   getCategoryLabel(): string {

@@ -1,5 +1,6 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject  } from '@angular/core';
 import type { ReviewProject } from '../../../shared/models';
+import { SourceService } from '../../sources/services/source.service';
 
 /** localStorage key for projects persistence. */
 const STORAGE_KEY = 'trt_projects';
@@ -13,6 +14,7 @@ const STORAGE_KEY = 'trt_projects';
 export class ProjectService {
   /** Reactive list of all projects. */
   private readonly _projects = signal<ReviewProject[]>(this.loadFromStorage());
+  private readonly sourceService = inject(SourceService);
 
   /** Public read-only access to projects. */
   readonly projects = this._projects.asReadonly();
@@ -61,8 +63,11 @@ export class ProjectService {
     this.saveToStorage();
   }
 
-  /** Delete a project and persist changes. */
+/** Delete a project, clean up source liaisons, and persist changes. */
   delete(id: string): void {
+    // Remove source liaisons first (sources stay in catalog)
+    this.sourceService.unlinkAllFromProject(id);
+
     this._projects.update(projects =>
       projects.filter(project => project.id !== id)
     );

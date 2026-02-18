@@ -1,0 +1,57 @@
+<div
+  class="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors"
+  [class.border-gray-200]="!selected()"
+  [class.bg-white]="!selected()"
+  [class.hover:bg-gray-50]="!selected()"
+  [class.border-teal-200]="selected()"
+  [class.bg-teal-50]="selected()"
+  [class.hover:bg-teal-100]="selected()"
+  (click)="onToggle()"
+  (keyup.enter)="onToggle()"
+  tabindex="0"
+  role="checkbox"
+  [attr.aria-checked]="selected()"
+  [attr.aria-label]="'Sélectionner : ' + article().title"
+>
+  <!-- Checkbox -->
+  <div
+    class="w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center mt-0.5 transition-colors"
+    [class.border-gray-300]="!selected()"
+    [class.border-teal-600]="selected()"
+    [class.bg-teal-600]="selected()"
+  >
+    @if (selected()) {
+      <span class="text-white text-xs font-bold">✓</span>
+    }
+  </div>
+
+  <!-- Content -->
+  <div class="flex-1 min-w-0">
+    <h3 class="text-sm font-medium text-gray-800 leading-snug mb-1">{{ article().title }}</h3>
+    <p class="text-xs text-gray-500 leading-relaxed mb-2 line-clamp-2">{{ article().summary }}</p>
+
+    <div class="flex items-center gap-2 flex-wrap">
+      <span
+        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+        [style.background-color]="getCategoryColor(article().sourceCategory) + '20'"
+        [style.color]="getCategoryColor(article().sourceCategory)"
+      >
+        {{ getCategoryIcon(article().sourceCategory) }}
+        {{ article().sourceName }}
+      </span>
+
+      <span class="text-xs text-gray-400">
+        {{ getRelativeTime(article().publishedAt) }}
+      </span>
+
+      <button
+        class="ml-auto text-gray-400 hover:text-teal-600 text-sm w-6 h-6 flex items-center justify-center rounded transition-colors"
+        (click)="onOpenArticle($event)"
+        aria-label="Lire l'article dans un nouvel onglet"
+        title="Ouvrir l'article"
+      >
+        👁
+      </button>
+    </div>
+  </div>
+</div>

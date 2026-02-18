@@ -2,7 +2,7 @@
 
 > **Nom du projet** : TechReviewTool — Agrégateur intelligent de veille technologique
 > **Date de création** : 14 février 2026
-> **Auteur** : Ellyria34
+> **Auteur** : Ellyria34 - Sarah LLEON
 > **Statut** : Étape 3 terminée — Sources RSS Many-to-Many fonctionnel avec persistance
 
 ---

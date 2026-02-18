@@ -1,8 +1,8 @@
-# 🔬 TechReviewTool
+# TechReviewTool
 
 > Angular 21 tech review tool — RSS aggregator with AI-powered content generation.
 
-## 📋 Overview
+## Overview
 
 TechReviewTool is a web application that helps developers and tech professionals stay on top of technology news. It aggregates articles from configurable RSS sources, filters them by topic and keywords, and uses AI to generate summaries, press reviews, and LinkedIn posts.
 
@@ -18,7 +18,7 @@ TechReviewTool is a web application that helps developers and tech professionals
 - **Generation history** — Find and reuse past AI-generated content
 - **Mobile-first responsive design** — Works on phone, tablet, and desktop
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Technology | Version | Purpose |
 |---|---|---|
@@ -29,7 +29,7 @@ TechReviewTool is a web application that helps developers and tech professionals
 | Node.js | 22.22.0 (Maintenance LTS) | JavaScript runtime |
 | npm | 10.9.4 (bundled) | Package manager |
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 tech-review-tool/
@@ -104,7 +104,7 @@ tech-review-tool/
 └── README.md                               # This file
 ```
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -139,7 +139,7 @@ Open [http://localhost:4200](http://localhost:4200) in your browser.
 | `npx prettier --check src/` | Check code formatting |
 | `npx prettier --write src/` | Auto-fix code formatting |
 
-## 🏗️ Architecture
+## Architecture
 
 This project follows a **multi-project workspace** pattern where each review project acts as an isolated context. Sources are managed as a **global catalog** with many-to-many liaisons to projects — a source can be shared across multiple projects without duplication.
 
@@ -151,13 +151,13 @@ This project follows a **multi-project workspace** pattern where each review pro
 - **GDPR-friendly** — Local-first data, no unnecessary third-party tracking
 - **Conventional Commits** — Structured commit messages for readable history
 
-## 📖 Documentation
+## Documentation
 
 | Document | Language | Description |
 |---|---|---|
 | [ARCHITECTURE_ET_METHODOLOGIE.md](./docs/ARCHITECTURE_ET_METHODOLOGIE.md) | 🇫🇷 French | Architecture decisions, methodology, SOLID principles |
 
-## 🗺️ Roadmap
+## Roadmap
 
 - [x] **Step 0** — Project setup (Angular 21, Git, GitHub)
 - [x] **Step 1** — Project structure, linting, Tailwind CSS, App Shell
@@ -169,6 +169,6 @@ This project follows a **multi-project workspace** pattern where each review pro
 - [ ] **Step 7** — Desktop layout adaptation
 - [ ] **Step 8** — Testing, accessibility audit, production build
 
-## 📄 License
+## License
 
 This project is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) — you may share and adapt it for **non-commercial purposes only**, with attribution and under the same license.

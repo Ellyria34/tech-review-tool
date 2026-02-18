@@ -1,0 +1,63 @@
+<div class="space-y-2">
+  <!-- Keyword search -->
+  <div class="relative">
+    <label for="keyword-input" class="sr-only">Rechercher par mots-clés</label>
+    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm">🔍</span>
+    <input
+      id="keyword-input"
+      type="text"
+      [formControl]="keywordControl"
+      placeholder="ransomware, faille, zero-day..."
+      class="w-full bg-gray-100 rounded-lg pl-9 pr-3 py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:bg-white transition-colors"
+      autocomplete="off"
+    />
+  </div>
+
+  <!-- Time window + Source dropdowns -->
+  <div class="flex gap-2">
+    <div class="flex-1">
+      <label for="time-window" class="sr-only">Période</label>
+      <select
+        id="time-window"
+        class="w-full bg-gray-100 rounded-lg px-3 py-2 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
+        [value]="filters().timeWindow"
+        (change)="onTimeWindowChange($event)"
+      >
+        @for (tw of timeWindows; track tw.value) {
+          <option [value]="tw.value">⏱ {{ tw.label }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="flex-1">
+      <label for="source-filter" class="sr-only">Source</label>
+      <select
+        id="source-filter"
+        class="w-full bg-gray-100 rounded-lg px-3 py-2 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
+        [value]="filters().sourceId ?? ''"
+        (change)="onSourceChange($event)"
+      >
+        <option value="">Toutes les sources</option>
+        @for (source of sources(); track source.id) {
+          <option [value]="source.id">{{ source.name }}</option>
+        }
+      </select>
+    </div>
+  </div>
+
+  <!-- Results count + Reset -->
+  <div class="flex items-center justify-between">
+    <span class="text-xs text-gray-400">
+      {{ filteredCount() }} / {{ totalCount() }} articles
+    </span>
+    @if (filters().keywords || filters().timeWindow !== '24h' || filters().sourceId) {
+      <button
+        class="text-xs text-gray-500 hover:text-teal-600 transition-colors"
+        (click)="onReset()"
+        aria-label="Réinitialiser les filtres"
+      >
+        ✕ Réinitialiser
+      </button>
+    }
+  </div>
+</div>

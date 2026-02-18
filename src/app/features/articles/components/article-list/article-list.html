@@ -1,15 +1,10 @@
 <div class="max-w-2xl mx-auto px-4 py-4 space-y-3">
   <!-- Header -->
   <header class="flex items-center gap-3">
-    
-      [routerLink]="['/projects', projectId]"
-      class="text-sm text-gray-500 hover:text-teal-600 transition-colors"
-      aria-label="Retour au projet"
-    >
     <a [routerLink]="['/projects', projectId]" class="text-sm text-gray-500 hover:text-teal-600 transition-colors" aria-label="Retour au projet">
       ←
     </a>
-    <h1 class="text-lg font-bold text-gray-800 flex-1">📰 Articles</h1>
+    <h1 class="text-lg font-bold text-gray-800 flex-1"> Les Articles</h1>
     <button
       class="text-lg hover:scale-110 transition-transform"
       (click)="onRefresh()"
@@ -54,10 +49,6 @@
         <p class="text-sm text-gray-500 mb-4">
           Ajoutez des sources actives, puis rafraîchissez.
         </p>
-        
-          [routerLink]="['/projects', projectId, 'sources']"
-          class="inline-block px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition-colors"
-        >
         <a [routerLink]="['/projects', projectId, 'sources']">
           ⚙️ Gérer les sources
         </a>

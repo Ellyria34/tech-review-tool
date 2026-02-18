@@ -55,6 +55,13 @@ export const routes: Routes = [
         './features/sources/components/source-form/source-form'
       ).then((m) => m.SourceForm),
   },
+  {
+  path: 'projects/:id/articles',
+  loadComponent: () =>
+    import('./features/articles/components/article-list/article-list').then(
+      (m) => m.ArticleListComponent
+    ),
+},
 ];
 
 

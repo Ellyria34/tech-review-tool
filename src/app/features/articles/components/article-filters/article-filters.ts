@@ -1,4 +1,4 @@
-import { Component, inject, OnDestroy, OnInit } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit, computed } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ArticleService } from '../../services/article.service';
 import { SourceService } from '../../../sources/services/source.service';
@@ -23,9 +23,11 @@ export class ArticleFiltersComponent implements OnInit, OnDestroy {
 
   readonly timeWindows = TIME_WINDOW_OPTIONS;
 
-  readonly sources = this.sourceService.getByProject(
-    this.articleService.currentProjectId()?? ''
-  );
+  readonly sources = computed(() => {
+    const projectId = this.articleService.currentProjectId();
+    if (!projectId) return [];
+    return this.sourceService.getByProject(projectId)();
+  });
 
   readonly filters = this.articleService.filters;
 

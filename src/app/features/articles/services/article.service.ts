@@ -289,11 +289,9 @@ private saveToStorage(): void {
 
     sources.forEach((source) => {
       const catTemplates = templates[source.category] || templates['general'];
-      const count = 3 + Math.floor(Math.random() * 3); // 3 to 5 articles
-      const shuffled = [...catTemplates].sort(() => Math.random() - 0.5);
-
-      shuffled.slice(0, count).forEach((template, index) => {
-        const hoursAgo = Math.floor(Math.random() * 168); // 0–7 jours
+      catTemplates.forEach((template, index) => {
+        const hoursOffsets = [1, 4, 10, 20, 36, 72, 140];
+        const hoursAgo = hoursOffsets[index % hoursOffsets.length];
         articles.push({
           id: crypto.randomUUID(),
           projectId,

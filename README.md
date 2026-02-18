@@ -17,7 +17,8 @@ TechReviewTool is a web application that helps developers and tech professionals
   - Structured press review
   - Optimized LinkedIn post
 - 🔲 **Generation history** — Find and reuse past AI-generated content
-- ✅ **Mobile-first responsive design** — Works on phone, tablet, and desktop
+- ✅ **Mobile-first design** — Optimized for phone screens
+- 🔲 **Responsive desktop layout** — Sidebar + project tabs
 
 ### C# Developer? Here's What You'll Recognize
 

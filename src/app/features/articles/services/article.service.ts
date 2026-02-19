@@ -2,17 +2,20 @@ import { Injectable, inject, signal, computed } from '@angular/core';
 import { SourceService } from '../../sources/services/source.service';
 import { Article, ArticleFilters, TimeWindow, DEFAULT_FILTERS } from '../../../shared/models';
 import { MOCK_ARTICLE_TEMPLATES } from '../../../shared/data/mock-articles';
-
-const STORAGE_KEY = 'trt-articles';
+import { loadFromStorage, saveToStorage } from '../../../core/services/storage.helper';
 
 @Injectable({
   providedIn: 'root',
 })
 export class ArticleService {
+  private readonly STORAGE_KEY = 'trt-articles';
+
   private readonly sourceService = inject(SourceService);
   
   // State signals
-  private readonly _articles = signal<Article[]>(this.loadFromStorage());
+  private readonly _articles = signal<Article[]>(
+    loadFromStorage<Article[]>(this.STORAGE_KEY, [])
+  );
   private readonly _filters = signal<ArticleFilters>({ ...DEFAULT_FILTERS });
   private readonly _currentProjectId = signal<string | null>(null);
   private readonly _selectedIds = signal<Set<string>>(new Set());
@@ -162,22 +165,9 @@ export class ArticleService {
   }
 
   //Storage
-  private loadFromStorage() : Article[]{
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      console.error('Failed to load articles from localStorage');
-      return [];
-    }
-  }
 
   private saveToStorage(): void {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this._articles()));
-    } catch {
-      console.error('Failed to save articles to localStorage');
-    }
+      saveToStorage(this.STORAGE_KEY, this._articles());
   }
     
   private generateMockArticles(

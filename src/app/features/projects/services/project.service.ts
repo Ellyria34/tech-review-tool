@@ -1,19 +1,24 @@
 import { Injectable, signal, computed, inject  } from '@angular/core';
 import type { ReviewProject } from '../../../shared/models';
 import { SourceService } from '../../sources/services/source.service';
-
-/** localStorage key for projects persistence. */
-const STORAGE_KEY = 'trt_projects';
+import { loadFromStorage, saveToStorage } from '../../../core/services/storage.helper';
 
 /**
- * Manages the lifecycle of review projects.
- * Singleton service — single source of truth for all project data.
- * Persists projects to localStorage for offline-first behavior.
- */
+* Manages the lifecycle of review projects.
+* Singleton service — single source of truth for all project data.
+* Persists projects to localStorage for offline-first behavior.
+*/
 @Injectable({ providedIn: 'root' })
 export class ProjectService {
+
+  /** localStorage key for projects persistence. */
+  private readonly STORAGE_KEY = 'trt_projects';
+
   /** Reactive list of all projects. */
-  private readonly _projects = signal<ReviewProject[]>(this.loadFromStorage());
+  private readonly _projects = signal<ReviewProject[]>(
+    loadFromStorage<ReviewProject[]>(this.STORAGE_KEY, [])
+  );
+  
   private readonly sourceService = inject(SourceService);
 
   /** Public read-only access to projects. */
@@ -74,14 +79,8 @@ export class ProjectService {
     this.saveToStorage();
   }
 
-  /** Load projects from localStorage. */
-  private loadFromStorage(): ReviewProject[] {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  }
-
   /** Save current projects to localStorage. */
   private saveToStorage(): void {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(this._projects()));
+    saveToStorage(this.STORAGE_KEY, this._projects());
   }
 }

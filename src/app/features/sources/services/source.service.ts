@@ -1,20 +1,24 @@
 import { Injectable, computed, signal } from '@angular/core';
 import { Source, CreateSourceData, ProjectSource, LinkedSource } from '../../../shared/models';
+import { loadFromStorage, saveToStorage } from '../../../core/services/storage.helper';
 
-// Two separate storage keys — catalog and liaisons
-const SOURCES_KEY = 'techreviewtool_sources';
-const PROJECT_SOURCES_KEY = 'techreviewtool_project_sources';
 
 @Injectable({
   providedIn: 'root',
 })
 export class SourceService {
-
+  // Two separate storage keys — catalog and liaisons
+  private readonly SOURCES_KEY = 'techreviewtool_sources';
+  private readonly PROJECT_SOURCES_KEY = 'techreviewtool_project_sources';
+  
   // Global source catalog (shared across all projects)
-  private readonly _sources = signal<Source[]>(this.loadFromStorage(SOURCES_KEY));
+  private readonly _sources = signal<Source[]>(
+    loadFromStorage<Source[]>(this.SOURCES_KEY, [])
+  );
 
   // Project-source liaisons (which project uses which source)
-  private readonly _projectSources = signal<ProjectSource[]>(this.loadFromStorage(PROJECT_SOURCES_KEY));
+  private readonly _projectSources = signal<ProjectSource[]>(
+    loadFromStorage<ProjectSource[]>(this.PROJECT_SOURCES_KEY, []));
 
   // Public read-only accessors
   readonly sources = this._sources.asReadonly();
@@ -108,7 +112,7 @@ export class SourceService {
     };
 
     this._sources.update((current) => [...current, newSource]);
-    this.saveToStorage(SOURCES_KEY, this._sources());
+    saveToStorage(this.SOURCES_KEY, this._sources());
 
     return newSource;
   }
@@ -128,7 +132,7 @@ export class SourceService {
       })
     );
 
-    this.saveToStorage(SOURCES_KEY, this._sources());
+    saveToStorage(this.SOURCES_KEY, this._sources());
   }
 
   /** Delete a source from the catalog and all its liaisons. */
@@ -141,8 +145,8 @@ export class SourceService {
       current.filter((ps) => ps.sourceId !== sourceId)
     );
 
-    this.saveToStorage(SOURCES_KEY, this._sources());
-    this.saveToStorage(PROJECT_SOURCES_KEY, this._projectSources());
+    saveToStorage(this.SOURCES_KEY, this._sources());
+    saveToStorage(this.PROJECT_SOURCES_KEY, this._projectSources());
   }
 
   // ═══ Liaison methods (project ↔ source) ═══
@@ -158,7 +162,7 @@ export class SourceService {
     };
 
     this._projectSources.update((current) => [...current, link]);
-    this.saveToStorage(PROJECT_SOURCES_KEY, this._projectSources());
+    saveToStorage(this.PROJECT_SOURCES_KEY, this._projectSources());
 
     return link;
   }
@@ -169,7 +173,7 @@ export class SourceService {
       current.filter((ps) => ps.id !== linkId)
     );
 
-    this.saveToStorage(PROJECT_SOURCES_KEY, this._projectSources());
+    saveToStorage(this.PROJECT_SOURCES_KEY, this._projectSources());
   }
 
   /** Toggle active status for a source in a specific project. */
@@ -182,7 +186,7 @@ export class SourceService {
       )
     );
 
-    this.saveToStorage(PROJECT_SOURCES_KEY, this._projectSources());
+    saveToStorage(this.PROJECT_SOURCES_KEY, this._projectSources());
   }
 
   /** Remove all liaisons for a project (when project is deleted).
@@ -192,7 +196,7 @@ export class SourceService {
       current.filter((ps) => ps.projectId !== projectId)
     );
 
-    this.saveToStorage(PROJECT_SOURCES_KEY, this._projectSources());
+    saveToStorage(this.PROJECT_SOURCES_KEY, this._projectSources());
   }
 
   // ═══ Convenience: create + link in one step ═══
@@ -202,25 +206,5 @@ export class SourceService {
     const source = this.createSource(data);
     this.linkToProject(projectId, source.id);
     return source;
-  }
-
-  // ═══ localStorage persistence ═══
-
-  private loadFromStorage<T>(key: string): T[] {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? (JSON.parse(raw) as T[]) : [];
-    } catch {
-      console.error(`Failed to load ${key} from localStorage`);
-      return [];
-    }
-  }
-
-  private saveToStorage<T>(key: string, data: T[]): void {
-    try {
-      localStorage.setItem(key, JSON.stringify(data));
-    } catch (e) {
-      console.error(`Failed to save ${key} to localStorage`, e);
-    }
   }
 }

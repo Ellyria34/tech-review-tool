@@ -1,0 +1,114 @@
+@if (isOpen()) {
+  <!-- Overlay: semi-transparent background, click to close -->
+  <div
+    class="panel-overlay"
+    (click)="close()"
+    (keydown)="onKeydown($event)"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="ai-panel-title"
+    tabindex="-1"
+  >
+    <!-- Panel: stopPropagation prevents closing when clicking inside -->
+    <div
+      class="panel-sheet"
+      (click)="$event.stopPropagation()"
+      (keydown)="$event.stopPropagation()"
+      tabindex="-1"
+    >
+      <!-- Drag handle (visual affordance for mobile) -->
+      <div class="flex justify-center pt-3 pb-2">
+        <div class="w-10 h-1 bg-gray-300 rounded-full"></div>
+      </div>
+
+      <div class="px-4 pb-4 space-y-4">
+        <!-- Header: project context + article count -->
+        <div class="flex items-center gap-2">
+          <span class="text-sm" aria-hidden="true">{{ projectIcon() }}</span>
+          <div>
+            <h2
+              id="ai-panel-title"
+              class="text-sm font-semibold text-gray-800"
+            >
+              Action IA — {{ articles().length }}
+              article{{ articles().length > 1 ? 's' : '' }}
+            </h2>
+            <p class="text-xs text-gray-400">
+              Projet : {{ projectName() }}
+            </p>
+          </div>
+        </div>
+
+        <!-- Action type selector (radio group) -->
+        <div
+          class="space-y-2"
+          role="radiogroup"
+          aria-label="Type de contenu à générer"
+        >
+          @for (type of contentTypes; track type) {
+            <button
+              class="action-option"
+              [class.action-option--selected]="selectedType() === type"
+              (click)="selectType(type)"
+              role="radio"
+              [attr.aria-checked]="selectedType() === type"
+              [attr.aria-label]="
+                contentTypeOptions[type].label + ' — ' +
+                contentTypeOptions[type].description
+              "
+              [disabled]="isGenerating()"
+            >
+              <span class="text-lg" aria-hidden="true">
+                {{ contentTypeOptions[type].icon }}
+              </span>
+              <div class="flex-1 text-left">
+                <div class="text-xs font-medium text-gray-700">
+                  {{ contentTypeOptions[type].label }}
+                </div>
+                <div class="text-xs text-gray-400">
+                  {{ contentTypeOptions[type].description }}
+                </div>
+              </div>
+              <!-- Radio dot indicator -->
+              <div
+                class="radio-dot"
+                [class.radio-dot--selected]="selectedType() === type"
+              >
+                @if (selectedType() === type) {
+                  <div class="w-1.5 h-1.5 bg-white rounded-full"></div>
+                }
+              </div>
+            </button>
+          }
+        </div>
+
+        <!-- Error message -->
+        @if (errorMessage()) {
+          <div
+            class="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-2"
+            role="alert"
+          >
+            {{ errorMessage() }}
+          </div>
+        }
+
+        <!-- Generate button -->
+        <button
+          class="generate-btn"
+          (click)="onGenerate()"
+          [disabled]="isGenerating()"
+          [attr.aria-busy]="isGenerating()"
+        >
+          @if (isGenerating()) {
+            <span class="flex items-center justify-center gap-2">
+              <span class="animate-spin" aria-hidden="true">⏳</span>
+              Génération en cours...
+            </span>
+          } @else {
+            Générer
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}

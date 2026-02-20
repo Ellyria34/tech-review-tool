@@ -12,30 +12,13 @@ TechReviewTool is a web application that helps developers and tech professionals
 - ✅ **Configurable RSS sources** — Add/remove sources per project (global catalog, many-to-many)
 - ✅ **Smart filtering** — Filter articles by keywords, time window (12h, 24h, 48h, 7d) and source
 - ✅ **Article selection** — Select articles with checkboxes, select all, sticky selection bar
-- 🔲 **AI-powered generation** — Select articles and generate:
-  - Concise synthesis of key points
+- ✅ **AI-powered generation** — Select articles and generate:
+  - Concise synthesis with source links
   - Structured press review
-  - Optimized LinkedIn post
+  - Engaging LinkedIn post from your tech watch
 - 🔲 **Generation history** — Find and reuse past AI-generated content
 - ✅ **Mobile-first design** — Optimized for phone screens
 - 🔲 **Responsive desktop layout** — Sidebar + project tabs
-
-### C# Developer? Here's What You'll Recognize
-
-This project is built with concepts familiar to .NET developers:
-
-| C# / .NET Concept | Angular / TypeScript Equivalent |
-|---|---|
-| `DbSet<T>` + Entity Framework | `Signal<T[]>` + Services with localStorage |
-| `IQueryable.Where().OrderBy()` | `computed()` chain (auto-recalculating filters) |
-| `ITenantProvider` (Multi-Tenant) | `currentProjectId` Signal (project context) |
-| Repository Pattern | Services (`ProjectService`, `SourceService`, `ArticleService`) |
-| `HashSet<T>` | `Set<string>` for O(1) selection lookups |
-| Areas in ASP.NET MVC | Nested routing (`/projects/:id/articles`) |
-| `HttpContext.User` | `currentProject` Signal (global context) |
-| `e.Handled = true` (WPF) | `event.stopPropagation()` (event bubbling) |
-| `IDisposable.Dispose()` | `ngOnDestroy()` + `takeUntil()` for RxJS subscriptions |
-| Property getter (no side effects) | `computed()` signal (pure, no side effects) |
 
 ## 🛠️ Tech Stack
 
@@ -66,9 +49,15 @@ tech-review-tool/
 │   │   │   │       └── header.ts
 │   │   │   ├── guards/                     # Route protection (planned)
 │   │   │   ├── interceptors/               # HTTP interceptors (planned)
-│   │   │   └── services/                   # Singleton services (planned)
+│   │   │   └── services/
+│   │   │       └── storage.helper.ts       # Shared localStorage helpers (loadFromStorage, saveToStorage)
 │   │   ├── features/
-│   │   │   ├── ai-actions/                 # AI content generation (planned — step 5)
+│   │   │   ├── ai-actions/                 # AI content generation
+│   │   │   │   ├── components/
+│   │   │   │   │   ├── ai-action-panel/    # Bottom sheet: action type selector + generate
+│   │   │   │   │   └── generated-content/  # Generated content display + copy/export
+│   │   │   │   └── services/
+│   │   │   │       └── ai.service.ts       # AI generation (mock) + localStorage persistence
 │   │   │   ├── articles/                   # Article listing, filters, selection
 │   │   │   │   ├── components/
 │   │   │   │   │   ├── article-card/       # Single article card (checkbox, metadata, external link)
@@ -82,7 +71,7 @@ tech-review-tool/
 │   │   │   │   │   ├── project-card/       # Single project card (input/output)
 │   │   │   │   │   ├── project-form/       # Create/edit form (Reactive Forms)
 │   │   │   │   │   ├── project-list/       # Project list (home screen)
-│   │   │   │   │   └── project-workspace/  # Project dashboard (stats, sources, articles)
+│   │   │   │   │   └── project-workspace/  # Project dashboard (stats, actions, history)
 │   │   │   │   └── services/
 │   │   │   │       └── project.service.ts  # CRUD + Signals + localStorage
 │   │   │   └── sources/                    # RSS source management
@@ -100,7 +89,7 @@ tech-review-tool/
 │   │   │   ├── directives/                 # Custom directives (planned)
 │   │   │   ├── models/                     # TypeScript interfaces
 │   │   │   │   ├── article.model.ts        # Article, ArticleFilters, TimeWindow
-│   │   │   │   ├── generated-content.model.ts
+│   │   │   │   ├── generated-content.model.ts  # GeneratedContent, ContentType, ContentTypeInfo
 │   │   │   │   ├── project.model.ts        # ReviewProject
 │   │   │   │   ├── source.model.ts         # Source, ProjectSource, LinkedSource, SourceCategory
 │   │   │   │   └── index.ts               # Barrel exports
@@ -173,9 +162,9 @@ Open [http://localhost:4200](http://localhost:4200) in your browser.
 
 ## 🏗️ Architecture
 
-This project follows a **multi-project workspace** pattern where each review project acts as an isolated context (similar to **Multi-Tenant** in ASP.NET). Sources are managed as a **global catalog** with many-to-many liaisons to projects — a source can be shared across multiple projects without duplication.
+This project follows a **multi-project workspace** pattern where each review project acts as an isolated context. Sources are managed as a **global catalog** with many-to-many liaisons to projects — a source can be shared across multiple projects without duplication.
 
-### Reactive Data Flow (like IQueryable in C#)
+### Reactive Data Flow
 
 ```
 Signal _articles          →  computed projectArticles     →  computed filteredArticles
@@ -184,7 +173,7 @@ Signal _articles          →  computed projectArticles     →  computed filter
                                                              displayed in template
 ```
 
-Each `computed()` auto-recalculates when its dependencies change — like chaining `.Where()` on an `IQueryable`.
+Each `computed()` auto-recalculates when its dependencies change — similar to chaining filter operations in a reactive pipeline.
 
 ### Design Principles
 
@@ -199,7 +188,7 @@ Each `computed()` auto-recalculates when its dependencies change — like chaini
 
 | Document | Language | Description |
 |---|---|---|
-| [ARCHITECTURE_ET_METHODOLOGIE.md](./docs/ARCHITECTURE_ET_METHODOLOGIE.md) | 🇫🇷 French | Architecture decisions, methodology, SOLID principles, C# parallels |
+| [ARCHITECTURE_ET_METHODOLOGIE.md](./docs/ARCHITECTURE_ET_METHODOLOGIE.md) | 🇫🇷 French | Architecture decisions, methodology, SOLID principles |
 | [JOURNAL_DE_BORD.md](./docs/JOURNAL_DE_BORD.md) | 🇫🇷 French | Daily log: decisions, problems, lessons learned |
 
 ## 🗺️ Roadmap
@@ -209,7 +198,7 @@ Each `computed()` auto-recalculates when its dependencies change — like chaini
 - [x] **Step 2** — Multi-project feature (CRUD projects)
 - [x] **Step 3** — RSS source management per project (many-to-many catalog)
 - [x] **Step 4** — Article listing with filters, selection, workspace integration
-- [ ] **Step 5** — AI-powered content generation (synthesis, press review, LinkedIn)
+- [x] **Step 5** — AI-powered content generation (synthesis, press review, LinkedIn)
 - [ ] **Step 6** — Generation history per project
 - [ ] **Step 7** — Desktop layout adaptation (sidebar + project tabs)
 - [ ] **Step 8** — Testing, accessibility audit, production build
@@ -220,6 +209,7 @@ Each `computed()` auto-recalculates when its dependencies change — like chaini
 |---|---|---|
 | **Step 3.5** — Source catalog reuse UI | Add a "📂 From catalog" button in source list to link existing sources to a project without recreating them. Architecture ready (`getAvailableForProject()` exists), only UI is missing. | Step 7 or standalone |
 | **Step 4.8** — Real RSS fetching | Replace mock data with real RSS feeds via CORS proxy + DOMParser. Mock data is sufficient for Steps 5-6. | After Step 6 |
+| **Step 5.7** — Verify theme() usage | Tailwind `theme()` function doesn't work in Angular component SCSS files. Use hex color values instead. Audit existing components for this issue. | Step 7 |
 
 ## 📄 License
 

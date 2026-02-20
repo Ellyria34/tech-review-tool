@@ -41,74 +41,63 @@
         <div class="text-xs text-gray-400">actives</div>
       </div>
       <div class="bg-gray-50 rounded-lg p-2 text-center">
-        <div class="font-bold text-lg text-gray-700">0</div>
+        <div class="font-bold text-lg text-gray-700">{{ articleCount() }}</div>
         <div class="text-xs text-gray-500">Articles</div>
         <div class="text-xs text-gray-400">récupérés</div>
       </div>
       <div class="bg-gray-50 rounded-lg p-2 text-center">
-        <div class="font-bold text-lg text-gray-700">0</div>
+        <div class="font-bold text-lg text-gray-700">{{ generatedContentCount() }}</div>
         <div class="text-xs text-gray-500">Contenus</div>
         <div class="text-xs text-gray-400">générés</div>
       </div>
     </div>
   </div> 
 
-<!-- Sources section -->
-  <div class="px-4 py-3">
-    <div class="flex items-center justify-between mb-2">
-      <span class="text-xs font-semibold text-gray-700">
-        ⚙️ Sources RSS ({{ sourceCount() }})
-      </span>
-      <a
-        [routerLink]="'/projects/' + p.id + '/sources'"
-        class="text-xs text-teal-600 hover:text-teal-700">
-        Gérer les sources →
-      </a>
-    </div>
+<!-- Quick actions -->
+  <div class="px-4 py-3 flex gap-2">
+    <a
+      [routerLink]="'/projects/' + p.id + '/sources'"
+      class="flex-1 text-center px-3 py-2 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 transition-colors">
+      ⚙️ Gérer les sources
+    </a>
+    <a
+      [routerLink]="'/projects/' + p.id + '/articles'"
+      class="flex-1 text-center px-3 py-2 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 transition-colors">
+      📰 Gérer les articles
+    </a>
+  </div>
 
-    @if (sourceCount() === 0) {
+  <!-- Main CTA: AI generation -->
+  <div class="px-4 py-2">
+    <a
+      [routerLink]="'/projects/' + p.id + '/articles'"
+      class="block w-full text-center px-4 py-3 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition-colors">
+      🤖 Sélectionner des articles et générer
+    </a>
+  </div>
+
+  <!-- AI History (step 6) -->
+  <div class="px-4 py-4">
+    <h3 class="text-xs font-semibold text-gray-700 mb-2">📋 Historique des générations</h3>
+    @if (generatedContentCount() === 0) {
       <div class="bg-gray-50 rounded-lg p-4 text-center">
-        <p class="text-xs text-gray-400 mb-2">Aucune source configurée</p>
-        <a
-          [routerLink]="'/projects/' + p.id + '/sources/new'"
-          class="text-xs text-teal-600 hover:text-teal-700 font-medium">
-          ➕ Ajouter une source
-        </a>
+        <p class="text-xs text-gray-400">Aucune génération pour ce projet</p>
+        <p class="text-xs text-gray-300 mt-1">Sélectionnez des articles et générez du contenu</p>
+      </div>
+    } @else {
+      <div class="bg-gray-50 rounded-lg p-4 text-center">
+        <p class="text-xs text-gray-500">{{ generatedContentCount() }} contenu(s) généré(s)</p>
+        <p class="text-xs text-gray-400 mt-1">Liste détaillée à venir — Étape 6</p>
       </div>
     }
   </div>
 
-  <!-- Articles section -->
-    <div class="px-4 py-3">
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-xs font-semibold text-gray-700">
-          📰 Articles ({{ articleCount() }})
-        </span>
-        <a
-          [routerLink]="'/projects/' + p.id + '/articles'"
-          class="text-xs text-teal-600 hover:text-teal-700">
-          Voir les articles →
-        </a>
-      </div>
-      <a
-        [routerLink]="'/projects/' + p.id + '/articles'"
-        class="block w-full text-center px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition-colors">
-        📰 Explorer les articles
+  } @else {
+    <div class="px-4 py-8 text-center text-gray-400">
+      <p class="text-3xl mb-2">❌</p>
+      <p class="text-sm">Projet introuvable</p>
+      <a routerLink="/projects" class="text-xs text-teal-600 hover:underline">
+        Retour aux projets
       </a>
     </div>
-
-    <!-- Placeholder for future content -->
-    <div class="px-4 py-6 text-center text-gray-400">
-      <p class="text-3xl mb-2">🚧</p>
-      <p class="text-sm">Actions IA et historique à venir</p>
-      <p class="text-xs mt-1">Étapes 5 et 6</p>
-    </div>
-} @else {
-  <div class="px-4 py-8 text-center text-gray-400">
-    <p class="text-3xl mb-2">❌</p>
-    <p class="text-sm">Projet introuvable</p>
-    <a routerLink="/projects" class="text-xs text-teal-600 hover:underline">
-      Retour aux projets
-    </a>
-  </div>
-}
+  }

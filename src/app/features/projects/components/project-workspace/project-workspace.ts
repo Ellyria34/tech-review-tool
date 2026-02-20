@@ -3,6 +3,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ProjectService } from '../../services/project.service';
 import { SourceService } from '../../../sources/services/source.service';
 import { ArticleService } from '../../../articles/services/article.service';
+import { AiService } from '../../../ai-actions/services/ai.service';
 
 /**
  * Workspace for a single project — shows project details and will host
@@ -20,6 +21,7 @@ export class ProjectWorkspace implements OnInit{
   private readonly projectService = inject(ProjectService);
   private readonly sourceService = inject(SourceService);
   private readonly articleService = inject(ArticleService);
+  private readonly aiService = inject(AiService);
 
   /** Get the project ID from the URL parameter. */
   private readonly projectId = this.route.snapshot.paramMap.get('id') ?? '';
@@ -33,6 +35,9 @@ export class ProjectWorkspace implements OnInit{
 
   /** Article source for this project (reactive)*/
   readonly articleCount = this.articleService.totalCount;
+
+  /** Generated content count for this project (reactive). */
+  readonly generatedContentCount = this.aiService.contentCount;
 
   /** Navigate to edit form. */
   onEdit(): void {
@@ -48,5 +53,6 @@ export class ProjectWorkspace implements OnInit{
   ngOnInit(): void {
     const projectId = this.route.snapshot.paramMap.get('id') ?? '';
     this.articleService.setCurrentProject(projectId);
+    this.aiService.setCurrentProject(projectId);
   }
 }

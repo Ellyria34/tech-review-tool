@@ -1,8 +1,5 @@
 import { Component, input, signal } from '@angular/core';
-import {
-  GeneratedContent,
-  CONTENT_TYPE_OPTIONS,
-} from '../../../../shared/models';
+import {GeneratedContent,  CONTENT_TYPE_OPTIONS } from '../../../../shared/models';
 
 @Component({
   selector: 'app-generated-content',

@@ -108,6 +108,11 @@
             Générer
           }
         </button>
+
+        <!-- Generated result (shown inside the panel) -->
+        @if (generatedResult()) {
+          <app-generated-content [content]="generatedResult()!" />
+        }
       </div>
     </div>
   </div>

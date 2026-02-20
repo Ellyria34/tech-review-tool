@@ -25,7 +25,11 @@
         {{ selectedCount() }} article(s) sélectionné(s)
       </span>
       <div class="flex items-center gap-2">
-        <button class="px-3 py-1.5 rounded text-xs font-medium bg-teal-600 text-white hover:bg-teal-700 transition-colors">
+        <button
+          class="px-3 py-1.5 rounded text-xs font-medium bg-teal-600 text-white hover:bg-teal-700 transition-colors"
+          (click)="openAiPanel()"
+          aria-label="Générer du contenu IA à partir des articles sélectionnés"
+        >
           🤖 Générer
         </button>
         <button
@@ -84,4 +88,15 @@
       }
     }
   </div>
+
+  <!-- AI Action Panel (bottom sheet) -->
+  <app-ai-action-panel
+    [articles]="selectedArticles()"
+    [projectId]="projectId"
+    [projectName]="'Mon projet'"
+    [projectIcon]="'📂'"
+    [isOpen]="isPanelOpen()"
+    (closed)="closeAiPanel()"
+  />
+
 </div>

@@ -1,10 +1,11 @@
 import { Component, inject, input, output, signal } from '@angular/core';
 import { Article, ContentType, GeneratedContent, CONTENT_TYPE_OPTIONS } from '../../../../shared/models';
 import { AiService } from '../../services/ai.service';
+import { GeneratedContentComponent } from '../generated-content/generated-content';
 
 @Component({
   selector: 'app-ai-action-panel',
-  imports: [],
+  imports: [GeneratedContentComponent],
   templateUrl: './ai-action-panel.html',
   styleUrl: './ai-action-panel.scss',
 })
@@ -13,7 +14,8 @@ export class AiActionPanelComponent {
   //internal State
   selectedType = signal<ContentType>('synthesis');
   errorMessage = signal<string | null>(null);
-  
+  generatedResult = signal<GeneratedContent | null>(null);
+
   //Dependencies
   private aiService = inject(AiService);
 
@@ -45,6 +47,7 @@ export class AiActionPanelComponent {
 
   /** Select a content type (radio button behavior). */
   selectType(type: ContentType): void {
+    console.log('selectType called with:', type);
     this.selectedType.set(type);
     this.errorMessage.set(null);
   }
@@ -52,6 +55,7 @@ export class AiActionPanelComponent {
   /** Close the panel. Blocked during generation to prevent data loss. */
   close(): void {
     if (this.isGenerating()) return;
+    this.generatedResult.set(null);
     this.closed.emit();
   }
 
@@ -66,13 +70,14 @@ export class AiActionPanelComponent {
   async onGenerate(): Promise<void> {
     if (this.isGenerating()) return;
     this.errorMessage.set(null);
-  
+
     try {
       const content = await this.aiService.generate(
         this.selectedType(),
         this.articles(),
         this.projectId()
       );
+      this.generatedResult.set(content);
       this.generated.emit(content);
     } catch (error) {
       this.errorMessage.set(

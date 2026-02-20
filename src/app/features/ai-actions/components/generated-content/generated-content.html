@@ -1,0 +1,52 @@
+<div class="content-card">
+  <!-- Header: type badge + timestamp -->
+  <div class="flex items-center justify-between mb-2">
+    <div class="flex items-center gap-1.5">
+      <span class="text-xs" aria-hidden="true">
+        {{ contentTypeOptions[content().type].icon }}
+      </span>
+      <span class="text-xs font-medium text-teal-700">
+        {{ contentTypeOptions[content().type].label }}
+      </span>
+    </div>
+    <span class="text-xs text-gray-400">
+      {{ content().createdAt }}
+    </span>
+  </div>
+
+  <p class="text-xs text-gray-400 mb-3">
+    ✅ Contenu généré — sauvegardé dans le projet
+  </p>
+
+  <!-- Content body (preserves Markdown line breaks) -->
+  <div class="content-body" aria-live="polite">
+    {{ content().content }}
+  </div>
+
+  <!-- Action buttons -->
+  <div class="flex gap-2 mt-3">
+    <button
+      class="action-btn action-btn--primary"
+      (click)="copyToClipboard()"
+      [attr.aria-label]="
+        copySuccess()
+          ? 'Contenu copié'
+          : 'Copier le contenu dans le presse-papier'
+      "
+    >
+      @if (copySuccess()) {
+        <span role="status">✅ Copié !</span>
+      } @else {
+        📋 Copier
+      }
+    </button>
+
+    <button
+      class="action-btn"
+      (click)="exportMarkdown()"
+      aria-label="Exporter le contenu en fichier Markdown"
+    >
+      📥 Export .md
+    </button>
+  </div>
+</div>

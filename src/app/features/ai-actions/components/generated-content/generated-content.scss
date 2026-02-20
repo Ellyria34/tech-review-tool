@@ -1,0 +1,58 @@
+// GeneratedContent — AI content display with copy/export actions.
+
+.content-card {
+  background-color: theme('colors.gray.50');
+  border: 1px solid theme('colors.gray.200');
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+
+.content-body {
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: theme('colors.gray.700');
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: theme('colors.gray.300');
+    border-radius: 2px;
+  }
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background-color: theme('colors.gray.200');
+  color: theme('colors.gray.600');
+
+  &:hover {
+    background-color: theme('colors.gray.300');
+  }
+
+  &:focus-visible {
+    outline: 2px solid theme('colors.teal.500');
+    outline-offset: 2px;
+  }
+
+  &--primary {
+    background-color: theme('colors.teal.600');
+    color: white;
+
+    &:hover {
+      background-color: theme('colors.teal.700');
+    }
+  }
+}

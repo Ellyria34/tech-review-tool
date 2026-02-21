@@ -1,9 +1,10 @@
 import { Component, input, signal } from '@angular/core';
 import {GeneratedContent,  CONTENT_TYPE_OPTIONS } from '../../../../shared/models';
+import { RelativeTimePipe } from "../../../../shared/pipes/relative-time-pipe";
 
 @Component({
   selector: 'app-generated-content',
-  imports: [],
+  imports: [RelativeTimePipe],
   templateUrl: './generated-content.html',
   styleUrl: './generated-content.scss',
 })

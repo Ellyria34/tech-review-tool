@@ -62,6 +62,13 @@ export const routes: Routes = [
       (m) => m.ArticleListComponent
     ),
 },
+{
+  path : 'projects/:id/history',
+  loadComponent: () =>
+    import('./features/history/components/history-list/history-list').then(
+      m => m.HistoryListComponent
+    ),
+},
 ];
 
 

@@ -3,7 +3,7 @@
 > **Nom du projet** : TechReviewTool — Agrégateur intelligent de veille technologique
 > **Date de création** : 14 février 2026
 > **Auteur** : Ellyria34 - Sarah LLEON
-> **Statut** : Étape 5 terminée — Actions IA (synthèse, revue de presse, LinkedIn)
+> **Statut** : Étape 6 terminée — Historique des générations par projet
 
 ---
 
@@ -152,7 +152,7 @@ Source (catalogue global)
 /projects/:id/sources/new              → Ajouter une source
 /projects/:id/sources/:sourceId/edit   → Modifier une source
 /projects/:id/articles                 → Articles du projet
-/projects/:id/history                  → Historique des générations (à venir)
+/projects/:id/history                  → Historique des générations
 ```
 
 Ce routing utilise le **lazy loading** (`loadComponent`) pour charger chaque composant à la demande. L'ordre des routes est important : les routes spécifiques (`/new`) doivent précéder les routes paramétrées (`/:id`).
@@ -177,6 +177,8 @@ Ce routing utilise le **lazy loading** (`loadComponent`) pour charger chaque com
 | Barre de filtres (recherche, période, source) | ArticleFilters | features/articles/components/ | ✅ |
 | Panneau Action IA (bottom sheet) | AiActionPanelComponent | features/ai-actions/components/ | ✅ |
 | Contenu généré (copier/exporter) | GeneratedContentComponent | features/ai-actions/components/ | ✅ |
+| Historique générations | HistoryListComponent | features/history/components/ | ✅ |
+| Temps relatif (pipe) | RelativeTimePipe | shared/pipes/ | ✅ |
 
 **Composants à venir** :
 
@@ -184,7 +186,6 @@ Ce routing utilise le **lazy loading** (`loadComponent`) pour charger chaque com
 |---|---|---|---|
 | Barre contexte projet | ProjectContextBarComponent | core/ | 7 |
 | Sélecteur rapide | ProjectSwitcherComponent | core/ | 7 |
-| Historique générations | HistoryListComponent | features/history/ | 6 |
 
 ---
 
@@ -351,7 +352,7 @@ src/
 ├── app/
 │   ├── core/                  # Singleton : composants, services, guards, interceptors
 │   │   ├── components/
-│   │   │   ├── bottom-nav/    # Navigation mobile (toujours visible en bas)
+│   │   │   ├── bottom-nav/    # Navigation mobile contextuelle (visible dans un projet uniquement)
 │   │   │   └── header/        # Header de l'app (toujours visible en haut)
 │   │   ├── services/
 │   │   │   └── storage.helper.ts  # Helpers localStorage partagés (loadFromStorage, saveToStorage)
@@ -370,12 +371,14 @@ src/
 │   │   ├── ai-actions/        # Génération IA (synthèse, revue de presse, LinkedIn)
 │   │   │   ├── components/    # ai-action-panel (bottom sheet), generated-content (affichage + copie/export)
 │   │   │   └── services/      # ai.service.ts (génération mock + localStorage)
-│   │   └── history/           # Historique des générations (à venir — étape 6)
+│   │   └── history/           # Historique des générations par projet
+│   │       └── components/    # history-list (page complète avec suppression)
 │   ├── shared/                # Composants réutilisables, pipes, directives
 │   │   ├── components/
 │   │   ├── data/              # Données centralisées (catégories, mock articles)
 │   │   ├── models/            # Interfaces TypeScript (ReviewProject, Source, Article, GeneratedContent...)
 │   │   ├── pipes/
+│   │   │   └── relative-time.pipe.ts  # "Il y a 2h", "Hier à 14h30", "20/02/2026"
 │   │   └── directives/
 │   ├── app.ts                 # Composant racine
 │   ├── app.html               # Template racine (App Shell)
@@ -499,7 +502,7 @@ Pour un projet solo avec montée en compétence :
 | **3** | Gestion des sources RSS par projet (catalogue Many-to-Many) | ✅ Terminé |
 | **4** | Liste d'articles avec filtres, sélection, intégration workspace | ✅ Terminé |
 | **5** | Actions IA (synthèse, revue de presse, LinkedIn) | ✅ Terminé |
-| **6** | Historique des générations par projet | ⬜ À faire |
+| **6** | Historique des générations par projet | ✅ Terminé |
 | **7** | Layout desktop (sidebar + onglets projets) | ⬜ À faire |
 | **8** | Tests, audit accessibilité, build production | ⬜ À faire |
 
@@ -533,6 +536,14 @@ Pour un projet solo avec montée en compétence :
 
 **Quand** : Étape 7 (polish global).
 
+### TODO 6.7 — Page de génération guidée (wizard)
+
+**Problème** : Le flux actuel "sélectionner des articles → cliquer Générer" n'est pas intuitif. L'utilisateur doit deviner qu'il faut d'abord sélectionner des articles dans la page articles. Un bandeau guidage a été ajouté comme amélioration rapide.
+
+**Ce qu'il faudrait** : Une page dédiée `/projects/:id/generate` avec un wizard pas-à-pas : voir les articles → sélectionner → choisir le format → générer. L'onglet "Générer" dans la BottomNav pointerait vers cette page.
+
+**Quand** : Étape 7 (UX polish) ou comme sous-étape autonome.
+
 ---
 
 ## 13. Glossaire Angular / TypeScript
@@ -560,3 +571,5 @@ Pour un projet solo avec montée en compétence :
 | `Promise<T>` | Représente une opération asynchrone qui retournera une valeur de type T. Utilisé avec `async/await`. |
 | `Bottom sheet` | Pattern mobile : panneau glissant depuis le bas de l'écran. Utilisé pour le panneau d'actions IA. |
 | `Blob` | Objet représentant des données binaires en mémoire. Utilisé pour l'export de fichiers côté client. |
+| `Pipe` | Transformateur de données dans le template. `{{ date \| relativeTime }}` transforme une date ISO en "Il y a 2h". Pur par défaut (recalculé uniquement quand l'entrée change). |
+| `Accordion` | Pattern UI où cliquer sur un élément l'expand pour montrer son contenu, recliquer le referme. Utilisé dans l'aperçu historique du workspace. |

@@ -1,4 +1,4 @@
-# 🔬 TechReviewTool
+# 📬 TechReviewTool
 
 > Angular 21 tech review tool — RSS aggregator with AI-powered content generation.
 
@@ -13,11 +13,11 @@ TechReviewTool is a web application that helps developers and tech professionals
 - ✅ **Smart filtering** — Filter articles by keywords, time window (12h, 24h, 48h, 7d) and source
 - ✅ **Article selection** — Select articles with checkboxes, select all, sticky selection bar
 - ✅ **AI-powered generation** — Select articles and generate:
-  - Concise synthesis with source links
+  - Concise synthesis of key points
   - Structured press review
-  - Engaging LinkedIn post from your tech watch
-- 🔲 **Generation history** — Find and reuse past AI-generated content
-- ✅ **Mobile-first design** — Optimized for phone screens
+  - Optimized LinkedIn post
+- ✅ **Generation history** — Find, expand, copy and export past AI-generated content
+- ✅ **Mobile-first design** — Optimized for phone screens with contextual bottom navigation
 - 🔲 **Responsive desktop layout** — Sidebar + project tabs
 
 ## 🛠️ Tech Stack
@@ -39,7 +39,7 @@ tech-review-tool/
 │   ├── app/
 │   │   ├── core/
 │   │   │   ├── components/
-│   │   │   │   ├── bottom-nav/             # Mobile navigation bar (4 tabs)
+│   │   │   │   ├── bottom-nav/             # Contextual mobile nav (visible inside projects only)
 │   │   │   │   │   ├── bottom-nav.html
 │   │   │   │   │   ├── bottom-nav.scss
 │   │   │   │   │   └── bottom-nav.ts
@@ -50,28 +50,30 @@ tech-review-tool/
 │   │   │   ├── guards/                     # Route protection (planned)
 │   │   │   ├── interceptors/               # HTTP interceptors (planned)
 │   │   │   └── services/
-│   │   │       └── storage.helper.ts       # Shared localStorage helpers (loadFromStorage, saveToStorage)
+│   │   │       └── storage.helper.ts       # Generic localStorage helpers (loadFromStorage, saveToStorage)
 │   │   ├── features/
 │   │   │   ├── ai-actions/                 # AI content generation
 │   │   │   │   ├── components/
-│   │   │   │   │   ├── ai-action-panel/    # Bottom sheet: action type selector + generate
-│   │   │   │   │   └── generated-content/  # Generated content display + copy/export
+│   │   │   │   │   ├── ai-action-panel/    # Bottom sheet: type selection + generation + result display
+│   │   │   │   │   └── generated-content/  # Content display with copy and .md export
 │   │   │   │   └── services/
-│   │   │   │       └── ai.service.ts       # AI generation (mock) + localStorage persistence
+│   │   │   │       └── ai.service.ts       # Mock generation, localStorage persistence, project filtering
 │   │   │   ├── articles/                   # Article listing, filters, selection
 │   │   │   │   ├── components/
 │   │   │   │   │   ├── article-card/       # Single article card (checkbox, metadata, external link)
 │   │   │   │   │   ├── article-filters/    # Search bar, time window, source dropdown, reset
-│   │   │   │   │   └── article-list/       # Container: assembles filters + cards + selection bar
+│   │   │   │   │   └── article-list/       # Container: filters + cards + selection bar + guidance banner
 │   │   │   │   └── services/
 │   │   │   │       └── article.service.ts  # Filters (computed chain), selection (Set), mock data
-│   │   │   ├── history/                    # Generation history (planned — step 6)
+│   │   │   ├── history/                    # Generation history
+│   │   │   │   └── components/
+│   │   │   │       └── history-list/       # Full history page with delete per entry
 │   │   │   ├── projects/                   # Project management
 │   │   │   │   ├── components/
 │   │   │   │   │   ├── project-card/       # Single project card (input/output)
 │   │   │   │   │   ├── project-form/       # Create/edit form (Reactive Forms)
 │   │   │   │   │   ├── project-list/       # Project list (home screen)
-│   │   │   │   │   └── project-workspace/  # Project dashboard (stats, actions, history)
+│   │   │   │   │   └── project-workspace/  # Project dashboard (stats, actions, history preview)
 │   │   │   │   └── services/
 │   │   │   │       └── project.service.ts  # CRUD + Signals + localStorage
 │   │   │   └── sources/                    # RSS source management
@@ -93,7 +95,8 @@ tech-review-tool/
 │   │   │   │   ├── project.model.ts        # ReviewProject
 │   │   │   │   ├── source.model.ts         # Source, ProjectSource, LinkedSource, SourceCategory
 │   │   │   │   └── index.ts               # Barrel exports
-│   │   │   └── pipes/                      # Custom pipes (planned)
+│   │   │   └── pipes/
+│   │   │       └── relative-time.pipe.ts   # "Il y a 2h", "Hier à 14h30", "20/02/2026"
 │   │   ├── app.config.ts                   # Application configuration
 │   │   ├── app.html                        # Root template (App Shell)
 │   │   ├── app.routes.ts                   # Route definitions (lazy-loaded)
@@ -106,7 +109,7 @@ tech-review-tool/
 │   └── tailwind.css                        # Tailwind CSS entry point
 ├── .vscode/                                # VS Code workspace settings
 ├── docs/
-│   └── ARCHITECTURE_ET_METHODOLOGIE.md     # Architecture 
+│   └── ARCHITECTURE_ET_METHODOLOGIE.md     # Architecture decisions (FR)
 ├── public/                                 # Static assets (favicon, images)
 ├── .editorconfig                           # Editor formatting conventions
 ├── .gitattributes                          # Line ending normalization (LF)
@@ -172,7 +175,7 @@ Signal _articles          →  computed projectArticles     →  computed filter
                                                              displayed in template
 ```
 
-Each `computed()` auto-recalculates when its dependencies change — similar to chaining filter operations in a reactive pipeline.
+Each `computed()` auto-recalculates when its dependencies change — forming a reactive pipeline that updates the UI automatically.
 
 ### Design Principles
 
@@ -197,7 +200,7 @@ Each `computed()` auto-recalculates when its dependencies change — similar to 
 - [x] **Step 3** — RSS source management per project (many-to-many catalog)
 - [x] **Step 4** — Article listing with filters, selection, workspace integration
 - [x] **Step 5** — AI-powered content generation (synthesis, press review, LinkedIn)
-- [ ] **Step 6** — Generation history per project
+- [x] **Step 6** — Generation history per project
 - [ ] **Step 7** — Desktop layout adaptation (sidebar + project tabs)
 - [ ] **Step 8** — Testing, accessibility audit, production build
 
@@ -205,9 +208,10 @@ Each `computed()` auto-recalculates when its dependencies change — similar to 
 
 | TODO | Description | When |
 |---|---|---|
-| **Step 3.5** — Source catalog reuse UI | Add a "📂 From catalog" button in source list to link existing sources to a project without recreating them. Architecture ready (`getAvailableForProject()` exists), only UI is missing. | Step 7 or standalone |
-| **Step 4.8** — Real RSS fetching | Replace mock data with real RSS feeds via CORS proxy + DOMParser. Mock data is sufficient for Steps 5-6. | After Step 6 |
-| **Step 5.7** — Verify theme() usage | Tailwind `theme()` function doesn't work in Angular component SCSS files. Use hex color values instead. Audit existing components for this issue. | Step 7 |
+| **3.5** — Source catalog reuse UI | Add a "📂 From catalog" button in source list to link existing sources to a project without recreating them. Architecture ready (`getAvailableForProject()` exists), only UI is missing. | Step 7 or standalone |
+| **4.8** — Real RSS fetching | Replace mock data with real RSS feeds via CORS proxy + DOMParser. Mock data is sufficient for Steps 5-6. | After Step 6 |
+| **5.7** — Audit `theme()` in component SCSS | Tailwind `theme()` function doesn't work in Angular component SCSS files. Audit all components and replace with hex values. | Step 7 |
+| **UX** — Dedicated generation page | Create a guided wizard (select articles → choose format → generate) instead of the current selection-first flow. | Step 7 |
 
 ## 📄 License
 

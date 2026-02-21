@@ -4,7 +4,7 @@
     <a [routerLink]="['/projects', projectId]" class="text-sm text-gray-500 hover:text-teal-600 transition-colors" aria-label="Retour au projet">
       ←
     </a>
-    <h1 class="text-lg font-bold text-gray-800 flex-1"> Les Articles</h1>
+    <h1 class="text-lg font-bold text-gray-800 flex-1">Les Articles</h1>
     <button
       class="text-lg hover:scale-110 transition-transform"
       (click)="onRefresh()"
@@ -14,6 +14,13 @@
       🔄
     </button>
   </header>
+
+  <!-- Guidance banner -->
+  @if (selectedCount() === 0 && totalCount() > 0) {
+    <div class="bg-teal-50 border border-teal-100 rounded-lg px-3 py-2 text-xs text-teal-700">
+      💡 Cochez des articles, puis cliquez sur <strong>Générer</strong> pour créer du contenu IA.
+    </div>
+  }
 
   <!-- Filters -->
   <app-article-filters />
@@ -98,5 +105,4 @@
     [isOpen]="isPanelOpen()"
     (closed)="closeAiPanel()"
   />
-
 </div>

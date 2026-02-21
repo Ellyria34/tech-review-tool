@@ -1,8 +1,8 @@
-<nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200"
-     aria-label="Main navigation">
-  <div class="flex justify-around py-2">
-    @for (item of navItems(); track item.label) {
-      @if (item.enabled) {
+@if (projectId()) {
+  <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200"
+       aria-label="Main navigation">
+    <div class="flex justify-around py-2">
+      @for (item of navItems(); track item.label) {
         <a class="flex flex-col items-center gap-0.5 text-gray-400 hover:text-teal-600 transition-colors"
            [routerLink]="item.route"
            routerLinkActive="text-teal-600"
@@ -10,14 +10,7 @@
           <span class="text-xl">{{ item.icon }}</span>
           <span class="text-xs">{{ item.label }}</span>
         </a>
-      } @else {
-        <span class="flex flex-col items-center gap-0.5 text-gray-300 cursor-not-allowed"
-              [attr.aria-label]="item.label + ' — sélectionnez un projet'"
-              title="Sélectionnez un projet d'abord">
-          <span class="text-xl">{{ item.icon }}</span>
-          <span class="text-xs">{{ item.label }}</span>
-        </span>
       }
-    }
-  </div>
-</nav>
+    </div>
+  </nav>
+}

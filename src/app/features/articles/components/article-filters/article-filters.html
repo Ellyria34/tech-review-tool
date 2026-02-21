@@ -20,11 +20,12 @@
       <select
         id="time-window"
         class="w-full bg-gray-100 rounded-lg px-3 py-2 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
-        [value]="filters().timeWindow"
         (change)="onTimeWindowChange($event)"
       >
         @for (tw of timeWindows; track tw.value) {
-          <option [value]="tw.value">⏱ {{ tw.label }}</option>
+          <option [value]="tw.value" [selected]="tw.value === filters().timeWindow">
+            ⏱ {{ tw.label }}
+          </option>
         }
       </select>
     </div>
@@ -34,12 +35,13 @@
       <select
         id="source-filter"
         class="w-full bg-gray-100 rounded-lg px-3 py-2 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
-        [value]="filters().sourceId ?? ''"
         (change)="onSourceChange($event)"
       >
-        <option value="">Toutes les sources</option>
+        <option value="" [selected]="!filters().sourceId">Toutes les sources</option>
         @for (source of sources(); track source.id) {
-          <option [value]="source.id">{{ source.name }}</option>
+          <option [value]="source.id" [selected]="source.id === filters().sourceId">
+            {{ source.name }}
+          </option>
         }
       </select>
     </div>

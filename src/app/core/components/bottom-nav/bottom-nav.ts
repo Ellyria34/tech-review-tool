@@ -34,11 +34,12 @@ export class BottomNav {
   /** Nav items — routes update reactively based on active project. */
   readonly navItems = computed(() => {
     const id = this.projectId();
+    if (!id) return [];
     return [
-      { icon: '📂', label: 'Projets', route: '/projects', enabled: true },
-      { icon: '📰', label: 'Articles', route: id ? `/projects/${id}/articles` : null, enabled: !!id },
-      { icon: '🤖', label: 'Générer', route: id ? `/projects/${id}/generate` : null, enabled: !!id },
-      { icon: '⚙️', label: 'Sources', route: id ? `/projects/${id}/sources` : null, enabled: !!id },
+      { icon: '📂', label: 'Projets', route: '/projects' },
+      { icon: '⚙️', label: 'Sources', route: `/projects/${id}/sources` },
+      { icon: '📰', label: 'Articles', route: `/projects/${id}/articles` },
+      { icon: '📋', label: 'Historique', route: `/projects/${id}/history` },
     ];
   });
 }

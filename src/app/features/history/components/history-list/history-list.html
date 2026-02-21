@@ -1,0 +1,56 @@
+<div class="max-w-2xl mx-auto px-4 py-4 space-y-3">
+  <!-- Header -->
+  <header class="flex items-center gap-3">
+    <a
+      [routerLink]="['/projects', projectId]"
+      class="text-sm text-gray-500 hover:text-teal-600 transition-colors"
+      aria-label="Retour au projet"
+    >
+      ←
+    </a>
+    <h1 class="text-lg font-bold text-gray-800 flex-1">
+      📋 Historique
+    </h1>
+    <span class="text-xs text-gray-400">
+      {{ contentCount() }} génération{{ contentCount() > 1 ? 's' : '' }}
+    </span>
+  </header>
+
+  <!-- Content list -->
+  @if (contentCount() === 0) {
+    <div class="text-center py-12">
+      <div class="text-4xl mb-3">📭</div>
+      <p class="font-semibold text-gray-700 mb-1">Aucune génération</p>
+      <p class="text-sm text-gray-500 mb-4">
+        Sélectionnez des articles et générez du contenu IA.
+      </p>
+      <a
+        [routerLink]="['/projects', projectId, 'articles']"
+        class="text-sm text-teal-600 hover:text-teal-700 font-medium"
+      >
+        📰 Aller aux articles
+      </a>
+    </div>
+  } @else {
+    @for (content of contents(); track content.id) {
+      <div class="space-y-1">
+        <!-- Delete button above each card -->
+        <div class="flex justify-end">
+          <button
+            class="text-xs text-gray-400 hover:text-red-500 transition-colors"
+            (click)="onDelete(content.id)"
+            [attr.aria-label]="
+              'Supprimer la génération ' +
+              contentTypeOptions[content.type].label
+            "
+          >
+            🗑️ Supprimer
+          </button>
+        </div>
+
+        <!-- Reuse the existing GeneratedContentComponent -->
+        <app-generated-content [content]="content" />
+      </div>
+    }
+  }
+</div>

@@ -6,7 +6,5 @@
  * The sidebar itself just fills its container vertically.
  */
 :host {
-  display: flex;
-  flex-direction: column;
   height: 100%;
 }

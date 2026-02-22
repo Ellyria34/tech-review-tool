@@ -1,0 +1,73 @@
+<aside class="flex flex-col h-full bg-white border-r border-gray-200">
+
+  <!-- App brand -->
+  <div class="px-4 py-3 border-b border-gray-100">
+    <a routerLink="/projects" class="font-bold text-sm text-gray-800 hover:text-teal-700 transition-colors">
+      📬 TechReviewTool
+    </a>
+  </div>
+
+  <!-- Project list (top zone) -->
+  <div class="flex-1 overflow-y-auto px-2 py-3">
+    <div class="text-xs text-gray-400 font-medium mb-2 px-2">Mes projets</div>
+
+    @for (project of projects(); track project.id) {
+      <a
+        [routerLink]="['/projects', project.id]"
+        class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm mb-0.5 transition-colors"
+        [class.bg-gray-100]="activeProjectId() === project.id"
+        [class.font-semibold]="activeProjectId() === project.id"
+        [class.text-gray-800]="activeProjectId() === project.id"
+        [class.text-gray-600]="activeProjectId() !== project.id"
+        [class.hover:bg-gray-50]="activeProjectId() !== project.id"
+        [attr.aria-current]="activeProjectId() === project.id ? 'page' : null"
+      >
+        <span class="text-base">{{ project.icon }}</span>
+        <span class="flex-1 truncate">{{ project.name }}</span>
+        @if (activeProjectId() === project.id) {
+          <span
+            class="w-2 h-2 rounded-full"
+            [style.background-color]="project.color"
+            aria-hidden="true"
+          ></span>
+        }
+      </a>
+    } @empty {
+      <p class="text-xs text-gray-400 px-2 py-4">Aucun projet créé</p>
+    }
+
+    <!-- New project button -->
+    <a
+      routerLink="/projects/new"
+      class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-teal-600 hover:bg-teal-50 transition-colors mt-2"
+    >
+      <span>➕</span>
+      <span>Nouveau projet</span>
+    </a>
+  </div>
+
+  <!-- Contextual project navigation (bottom zone) -->
+  @if (activeProject(); as project) {
+    <nav
+      class="border-t border-gray-200 px-2 py-3"
+      [attr.aria-label]="'Navigation — ' + project.name"
+    >
+      <div class="text-xs text-gray-400 font-medium mb-2 px-2 truncate">
+        {{ project.icon }} {{ project.name }}
+      </div>
+
+      @for (item of projectNavItems(); track item.path) {
+        <a
+          [routerLink]="item.path"
+          routerLinkActive="bg-teal-50 text-teal-700 font-medium"
+          [routerLinkActiveOptions]="{ exact: item.exact }"
+          class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors mb-0.5"
+        >
+          <span>{{ item.icon }}</span>
+          <span>{{ item.label }}</span>
+        </a>
+      }
+    </nav>
+  }
+
+</aside>

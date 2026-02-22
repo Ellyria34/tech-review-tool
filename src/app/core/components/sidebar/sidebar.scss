@@ -1,0 +1,12 @@
+/**
+ * Sidebar styles — Desktop only (component hidden on mobile via parent CSS).
+ * Uses :host to style the component's own element.
+ *
+ * Width is set by the parent layout (w-64 = 256px in app.html).
+ * The sidebar itself just fills its container vertically.
+ */
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}

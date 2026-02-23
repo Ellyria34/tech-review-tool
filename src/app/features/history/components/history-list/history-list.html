@@ -1,9 +1,9 @@
-<div class="max-w-2xl mx-auto px-4 py-4 space-y-3">
+<div class="space-y-3">
   <!-- Header -->
   <header class="flex items-center gap-3">
     <a
       [routerLink]="['/projects', projectId]"
-      class="text-sm text-gray-500 hover:text-teal-600 transition-colors"
+      class="text-sm text-gray-500 hover:text-teal-600 transition-colors lg:hidden"
       aria-label="Retour au projet"
     >
       ←
@@ -33,24 +33,11 @@
     </div>
   } @else {
     @for (content of contents(); track content.id) {
-      <div class="space-y-1">
-        <!-- Delete button above each card -->
-        <div class="flex justify-end">
-          <button
-            class="text-xs text-gray-400 hover:text-red-500 transition-colors"
-            (click)="onDelete(content.id)"
-            [attr.aria-label]="
-              'Supprimer la génération ' +
-              contentTypeOptions[content.type].label
-            "
-          >
-            🗑️ Supprimer
-          </button>
-        </div>
-
-        <!-- Reuse the existing GeneratedContentComponent -->
-        <app-generated-content [content]="content" />
-      </div>
+      <app-generated-content
+        [content]="content"
+        [showDelete]="true"
+        (deleted)="onDelete($event)"
+      />
     }
   }
 </div>

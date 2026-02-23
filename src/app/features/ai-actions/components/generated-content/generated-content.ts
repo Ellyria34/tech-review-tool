@@ -1,4 +1,4 @@
-import { Component, input, signal } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
 import {GeneratedContent,  CONTENT_TYPE_OPTIONS } from '../../../../shared/models';
 import { RelativeTimePipe } from "../../../../shared/pipes/relative-time-pipe";
 
@@ -11,6 +11,9 @@ import { RelativeTimePipe } from "../../../../shared/pipes/relative-time-pipe";
 export class GeneratedContentComponent {
   /** The generated content to display. */
   content = input.required<GeneratedContent>();
+  showDelete = input(false);
+  deleted = output<string>();
+
 
   /** Feedback after copy: shows "Copié !" for 2 seconds. */
   copySuccess = signal(false);

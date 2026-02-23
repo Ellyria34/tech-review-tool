@@ -7,6 +7,8 @@ import { AiService } from '../../../ai-actions/services/ai.service';
 import { RelativeTimePipe } from '../../../../shared/pipes/relative-time-pipe';
 import { CONTENT_TYPE_OPTIONS } from '../../../../shared/models';
 import { GeneratedContentComponent } from '../../../ai-actions/components/generated-content/generated-content';
+import { map } from 'rxjs';
+import { toSignal } from '@angular/core/rxjs-interop';
 
 /**
  * Workspace for a single project — shows project details and will host
@@ -29,16 +31,21 @@ export class ProjectWorkspace implements OnInit{
 
   //Signals
   expandedContentId = signal<string | null>(null);
+  
+  private readonly projectId = toSignal(
+    this.route.paramMap.pipe(map(params => params.get('id') ?? '')),
+    { initialValue: this.route.snapshot.paramMap.get('id') ?? '' }
+  );
 
-  /** Get the project ID from the URL parameter. */
-  private readonly projectId = this.route.snapshot.paramMap.get('id') ?? '';
+  // /** Get the project ID from the URL parameter. */
+  // private readonly projectId = this.route.snapshot.paramMap.get('id') ?? '';
 
   /** Reactive project — auto-updates if project data changes. */
-  readonly project = computed(() => this.projectService.getById(this.projectId));
+  readonly project = computed(() => this.projectService.getById(this.projectId()));
 
   /** Source count for this project (reactive). */
-  readonly sourceCount = this.sourceService.countByProject(this.projectId);
-  readonly activeSourceCount = this.sourceService.countActiveByProject(this.projectId);
+  readonly sourceCount = this.sourceService.countByProject(this.projectId());
+  readonly activeSourceCount = this.sourceService.countActiveByProject(this.projectId());
 
   /** Article source for this project (reactive)*/
   readonly articleCount = this.articleService.totalCount;
@@ -68,7 +75,7 @@ export class ProjectWorkspace implements OnInit{
 
   /** Delete project and go back to list. */
   onDelete(): void {
-    this.projectService.delete(this.projectId);
+    this.projectService.delete(this.projectId());
     this.router.navigate(['/projects']);
   }
 

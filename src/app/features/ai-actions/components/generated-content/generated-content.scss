@@ -53,4 +53,19 @@
       background-color: #0f766e;
     }
   }
+
+  &--export {
+    &:hover {
+      background-color: #ecfdf5;
+      color: #059669;
+    }
+  }
+
+  &--danger {
+    color: #9ca3af;
+    &:hover {
+      color: #ef4444;
+      background-color: #fef2f2;
+    }
+  }
 }

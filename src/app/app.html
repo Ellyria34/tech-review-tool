@@ -1,20 +1,23 @@
-<app-header class="lg:hidden"/>
+<app-header class="lg:hidden" />
 
-<!-- 
+<!--
   Responsive layout container:
-  - Mobile (default): single column, content fills the screen
+  - Mobile (default): single column (header + content + bottom-nav)
   - Desktop (lg:): sidebar on the left + content area on the right
-  
+
   Pure CSS breakpoint switch — no JavaScript needed.
-  Tailwind "lg:" prefix applies at ≥ 1024px.
 -->
 <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
 
   <!-- Desktop sidebar — hidden on mobile, visible on lg+ -->
   <app-sidebar class="hidden lg:flex w-64 flex-shrink-0" />
 
-  <!-- Main content area — takes remaining space -->
-  <main class="flex-1 overflow-y-auto pb-16 lg:pb-0">
+  <!--
+    Main content area — centralized padding for ALL pages.
+    Mobile: px-4 py-3 + pb-16 (space for bottom-nav)
+    Desktop: lg:px-8 lg:py-6 (wider padding, no bottom-nav)
+  -->
+  <main class="flex-1 overflow-y-auto px-4 py-3 pb-16 lg:px-8 lg:py-6 lg:pb-0">
     <router-outlet />
   </main>
 

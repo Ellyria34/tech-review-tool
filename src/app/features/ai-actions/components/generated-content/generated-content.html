@@ -42,11 +42,21 @@
     </button>
 
     <button
-      class="action-btn"
+      class="action-btn action-btn--export"
       (click)="exportMarkdown()"
       aria-label="Exporter le contenu en fichier Markdown"
     >
       📥 Export .md
     </button>
+
+    @if (showDelete()) {
+      <button
+        class="action-btn action-btn--danger"
+        (click)="deleted.emit(content().id)"
+        [attr.aria-label]="'Supprimer la génération ' + contentTypeOptions[content().type].label"
+      >
+        🗑️ Supprimer
+      </button>
+    }
   </div>
 </div>

@@ -3,7 +3,7 @@
 > **Nom du projet** : TechReviewTool — Agrégateur intelligent de veille technologique
 > **Date de création** : 14 février 2026
 > **Auteur** : Ellyria34 - Sarah LLEON
-> **Statut** : Étape 6 terminée — Historique des générations par projet
+> **Statut** : Étape 7 terminée — Layout desktop responsive (sidebar + navigation contextuelle)
 
 ---
 
@@ -157,14 +157,41 @@ Source (catalogue global)
 
 Ce routing utilise le **lazy loading** (`loadComponent`) pour charger chaque composant à la demande. L'ordre des routes est important : les routes spécifiques (`/new`) doivent précéder les routes paramétrées (`/:id`).
 
-### 3.3 Composants Angular
+### 3.3 Layout responsive (Mobile-first)
+
+L'application utilise un **switch CSS pur** via les breakpoints Tailwind — aucun JavaScript n'est impliqué dans le changement de layout :
+
+```
+Mobile (défaut) :  Header → Contenu → Bottom Nav    (pile verticale)
+Desktop (lg:) :    Sidebar | Contenu                 (layout horizontal)
+```
+
+**Principe** : trois composants de navigation coexistent dans le DOM, mais seuls ceux adaptés au breakpoint actuel sont visibles :
+
+| Composant | Mobile | Desktop (lg:) | Rôle |
+|---|---|---|---|
+| `Header` | Visible | Masqué (`lg:hidden`) | Branding + titre |
+| `BottomNav` | Visible | Masqué (`lg:hidden`) | Navigation contextuelle projet |
+| `Sidebar` | Masqué (`hidden`) | Visible (`lg:flex`) | Branding + liste projets + navigation contextuelle |
+
+**Pourquoi CSS pur ?** Pas de `window.matchMedia()`, pas de signal `isMobile`, pas de `@HostListener('resize')`. Le CSS gère le responsive nativement et sans coût de performance. JavaScript n'intervient que pour la logique métier, jamais pour le layout.
+
+**Adaptation des pages** : chaque page utilise des classes Tailwind responsive pour s'adapter :
+
+- Listes → `lg:grid lg:grid-cols-2 xl:grid-cols-3` (grille sur desktop)
+- Formulaires → `max-w-2xl mx-auto` (largeur contrainte et centrée)
+- Padding → `px-4 py-3 lg:px-8 lg:py-6` (plus large sur desktop)
+- Bottom nav space → `pb-16 lg:pb-0` (espace réservé en mobile, supprimé en desktop)
+
+### 3.4 Composants Angular
 
 **Composants implémentés** :
 
 | Wireframe | Composant Angular | Dossier | Statut |
 |---|---|---|---|
-| Header de l'app | Header | core/components/ | ✅ |
+| Header de l'app (mobile uniquement) | Header | core/components/ | ✅ |
 | Navigation mobile | BottomNav | core/components/ | ✅ |
+| Sidebar desktop (projets + nav contextuelle) | SidebarComponent | core/components/ | ✅ |
 | Liste des projets | ProjectList | features/projects/components/ | ✅ |
 | Carte projet | ProjectCard | features/projects/components/ | ✅ |
 | Formulaire création/édition projet | ProjectForm | features/projects/components/ | ✅ |
@@ -176,16 +203,9 @@ Ce routing utilise le **lazy loading** (`loadComponent`) pour charger chaque com
 | Carte d'article (checkbox, lien) | ArticleCard | features/articles/components/ | ✅ |
 | Barre de filtres (recherche, période, source) | ArticleFilters | features/articles/components/ | ✅ |
 | Panneau Action IA (bottom sheet) | AiActionPanelComponent | features/ai-actions/components/ | ✅ |
-| Contenu généré (copier/exporter) | GeneratedContentComponent | features/ai-actions/components/ | ✅ |
+| Contenu généré (copier/exporter/supprimer) | GeneratedContentComponent | features/ai-actions/components/ | ✅ |
 | Historique générations | HistoryListComponent | features/history/components/ | ✅ |
 | Temps relatif (pipe) | RelativeTimePipe | shared/pipes/ | ✅ |
-
-**Composants à venir** :
-
-| Wireframe | Composant Angular | Dossier | Étape |
-|---|---|---|---|
-| Barre contexte projet | ProjectContextBarComponent | core/ | 7 |
-| Sélecteur rapide | ProjectSwitcherComponent | core/ | 7 |
 
 ---
 
@@ -250,24 +270,28 @@ Ce pattern est répliqué dans `AiService` pour `projectContents` — les conten
 
 ### 4.4 Règle d'or : pas d'effets de bord dans les computed
 
-Un `computed()` doit être **pur** — il calcule et retourne une valeur, rien d'autre. Les effets de bord (appels service, navigation, modification d'état) vont dans `ngOnInit()` ou dans les méthodes déclenchées par l'utilisateur :
+Un `computed()` doit être **pur** — il calcule et retourne une valeur, rien d'autre. Les effets de bord (appels service, navigation, modification d'état) vont dans `effect()` ou dans les méthodes déclenchées par l'utilisateur :
 
 ```typescript
 // ❌ MAUVAIS — effet de bord dans un computed
 readonly sources = computed(() => {
-  this.articleService.setCurrentProject(this.projectId); // SIDE EFFECT!
-  return this.sourceService.getByProject(this.projectId)();
+  this.articleService.setCurrentProject(this.projectId()); // SIDE EFFECT!
+  return this.sourceService.getByProject(this.projectId())();
 });
 
-// ✅ BON — effet de bord dans ngOnInit, computed reste pur
-ngOnInit(): void {
-  this.articleService.setCurrentProject(this.projectId);
+// ✅ BON — effet de bord dans effect(), computed reste pur
+constructor() {
+  effect(() => {
+    this.articleService.setCurrentProject(this.projectId());
+  });
 }
 readonly sources = computed(() => {
   const projectId = this.articleService.currentProjectId();
   return this.sourceService.getByProject(projectId)();
 });
 ```
+
+`effect()` est préféré à `ngOnInit()` quand l'effet dépend d'un signal qui peut changer (ex: paramètre de route). `effect()` se ré-exécute automatiquement quand ses dépendances changent, alors que `ngOnInit()` ne s'exécute qu'une seule fois à la création du composant.
 
 ### 4.5 Génération IA — flux async
 
@@ -353,7 +377,8 @@ src/
 │   ├── core/                  # Singleton : composants, services, guards, interceptors
 │   │   ├── components/
 │   │   │   ├── bottom-nav/    # Navigation mobile contextuelle (visible dans un projet uniquement)
-│   │   │   └── header/        # Header de l'app (toujours visible en haut)
+│   │   │   ├── header/        # Header de l'app (mobile uniquement, masqué sur desktop)
+│   │   │   └── sidebar/       # Sidebar desktop (liste projets + navigation contextuelle projet)
 │   │   ├── services/
 │   │   │   └── storage.helper.ts  # Helpers localStorage partagés (loadFromStorage, saveToStorage)
 │   │   ├── guards/
@@ -503,7 +528,7 @@ Pour un projet solo avec montée en compétence :
 | **4** | Liste d'articles avec filtres, sélection, intégration workspace | ✅ Terminé |
 | **5** | Actions IA (synthèse, revue de presse, LinkedIn) | ✅ Terminé |
 | **6** | Historique des générations par projet | ✅ Terminé |
-| **7** | Layout desktop (sidebar + onglets projets) | ⬜ À faire |
+| **7** | Layout desktop responsive (sidebar + navigation contextuelle) | ✅ Terminé |
 | **8** | Tests, audit accessibilité, build production | ⬜ À faire |
 
 ---
@@ -518,7 +543,7 @@ Pour un projet solo avec montée en compétence :
 
 **Ce qu'il manque** : Un bouton "📂 Depuis le catalogue" dans la page sources, qui affiche les sources disponibles et permet de les lier en un clic.
 
-**Quand** : Intégrer à l'étape 7 (desktop layout) ou comme sous-étape autonome.
+**Quand** : Sous-étape autonome.
 
 ### TODO 4.8 — Récupération RSS réelle
 
@@ -526,7 +551,7 @@ Pour un projet solo avec montée en compétence :
 
 **Ce qu'il faudra** : Un `RssService` avec CORS proxy + `DOMParser` pour parser les vrais flux RSS.
 
-**Quand** : Après l'étape 6 (Historique). Les données mock sont suffisantes pour les étapes 5-6.
+**Quand** : Après l'étape 8 (Tests).
 
 ### TODO 5.7 — Audit `theme()` dans les SCSS de composants
 
@@ -534,7 +559,7 @@ Pour un projet solo avec montée en compétence :
 
 **Ce qu'il faudra** : Auditer tous les SCSS de composants existants pour remplacer d'éventuels `theme()` restants par les valeurs hex.
 
-**Quand** : Étape 7 (polish global).
+**Quand** : Étape 8 (audit global).
 
 ### TODO 6.7 — Page de génération guidée (wizard)
 
@@ -542,7 +567,7 @@ Pour un projet solo avec montée en compétence :
 
 **Ce qu'il faudrait** : Une page dédiée `/projects/:id/generate` avec un wizard pas-à-pas : voir les articles → sélectionner → choisir le format → générer. L'onglet "Générer" dans la BottomNav pointerait vers cette page.
 
-**Quand** : Étape 7 (UX polish) ou comme sous-étape autonome.
+**Quand** : Sous-étape autonome.
 
 ---
 
@@ -554,6 +579,9 @@ Pour un projet solo avec montée en compétence :
 | `Service` | Classe injectable qui contient la logique métier et la gestion des données. Singleton par défaut (`providedIn: 'root'`). |
 | `Signal` | Valeur réactive qui notifie automatiquement les composants quand elle change. Remplace RxJS pour les cas simples. |
 | `Computed` | Signal dérivé qui se recalcule automatiquement quand ses dépendances changent. Doit rester pur (pas d'effets de bord). |
+| `toSignal()` | Fonction qui convertit un Observable (flux RxJS) en Signal Angular. Indispensable pour les données provenant de sources externes (paramètres de route, requêtes HTTP, événements router). Le Signal se met à jour automatiquement à chaque émission de l'Observable. |
+| `effect()` | Fonction qui exécute un callback chaque fois que les signaux qu'elle lit changent. Utilisée pour les effets de bord réactifs (appeler un service quand un paramètre change). Remplace `ngOnInit` quand l'effet doit se ré-exécuter au cours de la vie du composant. |
+| `snapshot` | Lecture ponctuelle d'un paramètre de route (`route.snapshot.paramMap`). Lit la valeur une seule fois à la création. Adapté aux guards/resolvers ou quand le composant est toujours détruit/recréé. |
 | `Route` | Association entre une URL et un composant. Définies dans `app.routes.ts`. |
 | `Guard` | Fonction qui protège l'accès à une route (ex: vérifier qu'un projet existe avant d'y accéder). |
 | `Interceptor` | Fonction qui intercepte les requêtes HTTP sortantes (ex: ajouter un token d'authentification). |
@@ -573,3 +601,9 @@ Pour un projet solo avec montée en compétence :
 | `Blob` | Objet représentant des données binaires en mémoire. Utilisé pour l'export de fichiers côté client. |
 | `Pipe` | Transformateur de données dans le template. `{{ date \| relativeTime }}` transforme une date ISO en "Il y a 2h". Pur par défaut (recalculé uniquement quand l'entrée change). |
 | `Accordion` | Pattern UI où cliquer sur un élément l'expand pour montrer son contenu, recliquer le referme. Utilisé dans l'aperçu historique du workspace. |
+| `toSignal()` | Convertit un Observable RxJS en Signal Angular. Utilisé pour les paramètres de route (`route.paramMap`) afin que le composant réagisse quand l'URL change sans être détruit/recréé. |
+| `effect()` | Fonction qui s'exécute automatiquement quand un signal qu'elle lit change. Utilisée pour les effets de bord réactifs (ex: `setCurrentProject()` quand l'ID de route change). Préférée à `ngOnInit()` quand l'effet dépend de valeurs réactives. |
+| `BEM` | Convention de nommage CSS : Block Element Modifier (`.block`, `.block__element`, `.block--modifier`). En SCSS, le `&` référence le sélecteur parent : `&--modifier` génère `.block--modifier`. Sans `&`, on crée un sélecteur descendant qui ne matchera pas. |
+| `Breakpoint CSS` | Point de rupture qui active des styles différents selon la largeur de l'écran. Tailwind utilise `lg:` pour ≥1024px. Un switch de layout purement CSS ne nécessite aucun JavaScript. |
+| `BEM (Block Element Modifier)` | Convention de nommage CSS : `.block`, `.block__element`, `.block--modifier`. En SCSS, on utilise `&--modifier` pour générer `.block--modifier`. Sans `&`, SCSS crée un sélecteur descendant `.block .block--modifier` qui ne fonctionne pas. |
+| `Breakpoint CSS` | Seuil de largeur d'écran qui déclenche un changement de layout. Dans Tailwind, `lg:` correspond à ≥ 1024px. Utilisé pour basculer entre le layout mobile (vertical) et desktop (sidebar horizontale) sans JavaScript. |

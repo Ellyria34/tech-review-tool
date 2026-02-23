@@ -8,7 +8,7 @@ TechReviewTool is a web application that helps developers and tech professionals
 
 ### Key Features
 
-- ✅ **Multi-project workspace** — Organize your tech watch by theme (Cybersecurity, AI, Frontend, .NET...)
+- ✅ **Multi-project workspace** — Organize your tech watch by theme (Cybersecurity, AI, Frontend...)
 - ✅ **Configurable RSS sources** — Add/remove sources per project (global catalog, many-to-many)
 - ✅ **Smart filtering** — Filter articles by keywords, time window (12h, 24h, 48h, 7d) and source
 - ✅ **Article selection** — Select articles with checkboxes, select all, sticky selection bar
@@ -17,8 +17,7 @@ TechReviewTool is a web application that helps developers and tech professionals
   - Structured press review
   - Optimized LinkedIn post
 - ✅ **Generation history** — Find, expand, copy and export past AI-generated content
-- ✅ **Mobile-first design** — Optimized for phone screens with contextual bottom navigation
-- 🔲 **Responsive desktop layout** — Sidebar + project tabs
+- ✅ **Responsive design** — Mobile-first with adaptive desktop layout (sidebar + contextual navigation)
 
 ## 🛠️ Tech Stack
 
@@ -43,10 +42,14 @@ tech-review-tool/
 │   │   │   │   │   ├── bottom-nav.html
 │   │   │   │   │   ├── bottom-nav.scss
 │   │   │   │   │   └── bottom-nav.ts
-│   │   │   │   └── header/                 # App header (always visible)
-│   │   │   │       ├── header.html
-│   │   │   │       ├── header.scss
-│   │   │   │       └── header.ts
+│   │   │   │   ├── header/                 # App header (mobile only, hidden on desktop)
+│   │   │   │   │   ├── header.html
+│   │   │   │   │   ├── header.scss
+│   │   │   │   │   └── header.ts
+│   │   │   │   └── sidebar/               # Desktop sidebar (project list + contextual nav)
+│   │   │   │       ├── sidebar.html
+│   │   │   │       ├── sidebar.scss
+│   │   │   │       └── sidebar.ts
 │   │   │   ├── guards/                     # Route protection (planned)
 │   │   │   ├── interceptors/               # HTTP interceptors (planned)
 │   │   │   └── services/
@@ -55,7 +58,7 @@ tech-review-tool/
 │   │   │   ├── ai-actions/                 # AI content generation
 │   │   │   │   ├── components/
 │   │   │   │   │   ├── ai-action-panel/    # Bottom sheet: type selection + generation + result display
-│   │   │   │   │   └── generated-content/  # Content display with copy and .md export
+│   │   │   │   │   └── generated-content/  # Content display with copy, .md export and optional delete
 │   │   │   │   └── services/
 │   │   │   │       └── ai.service.ts       # Mock generation, localStorage persistence, project filtering
 │   │   │   ├── articles/                   # Article listing, filters, selection
@@ -71,16 +74,16 @@ tech-review-tool/
 │   │   │   ├── projects/                   # Project management
 │   │   │   │   ├── components/
 │   │   │   │   │   ├── project-card/       # Single project card (input/output)
-│   │   │   │   │   ├── project-form/       # Create/edit form (Reactive Forms)
-│   │   │   │   │   ├── project-list/       # Project list (home screen)
+│   │   │   │   │   ├── project-form/       # Create/edit form (Reactive Forms, constrained on desktop)
+│   │   │   │   │   ├── project-list/       # Project list (responsive grid on desktop)
 │   │   │   │   │   └── project-workspace/  # Project dashboard (stats, actions, history preview)
 │   │   │   │   └── services/
 │   │   │   │       └── project.service.ts  # CRUD + Signals + localStorage
 │   │   │   └── sources/                    # RSS source management
 │   │   │       ├── components/
 │   │   │       │   ├── source-card/        # Single source card (toggle, edit, delete)
-│   │   │       │   ├── source-form/        # Create/edit form (URL validation, categories)
-│   │   │       │   └── source-list/        # Source list per project (container)
+│   │   │       │   ├── source-form/        # Create/edit form (URL validation, constrained on desktop)
+│   │   │       │   └── source-list/        # Source list per project (responsive grid on desktop)
 │   │   │       └── services/
 │   │   │           └── source.service.ts   # Catalog + liaisons + localStorage
 │   │   ├── shared/
@@ -98,7 +101,7 @@ tech-review-tool/
 │   │   │   └── pipes/
 │   │   │       └── relative-time.pipe.ts   # "Il y a 2h", "Hier à 14h30", "20/02/2026"
 │   │   ├── app.config.ts                   # Application configuration
-│   │   ├── app.html                        # Root template (App Shell)
+│   │   ├── app.html                        # Root template (responsive App Shell)
 │   │   ├── app.routes.ts                   # Route definitions (lazy-loaded)
 │   │   ├── app.scss                        # Root styles
 │   │   ├── app.spec.ts                     # Root component tests
@@ -166,6 +169,15 @@ Open [http://localhost:4200](http://localhost:4200) in your browser.
 
 This project follows a **multi-project workspace** pattern where each review project acts as an isolated context. Sources are managed as a **global catalog** with many-to-many liaisons to projects — a source can be shared across multiple projects without duplication.
 
+### Responsive Layout
+
+The application uses a **pure CSS breakpoint switch** for responsive behavior:
+
+- **Mobile** (default): vertical stack — header + scrollable content + bottom navigation
+- **Desktop** (lg: ≥ 1024px): horizontal layout — sidebar (256px fixed) + content area (flex-1)
+
+The header and bottom nav are hidden on desktop; the sidebar takes over branding and navigation. No JavaScript is involved in the layout switch.
+
 ### Reactive Data Flow
 
 ```
@@ -201,17 +213,17 @@ Each `computed()` auto-recalculates when its dependencies change — forming a r
 - [x] **Step 4** — Article listing with filters, selection, workspace integration
 - [x] **Step 5** — AI-powered content generation (synthesis, press review, LinkedIn)
 - [x] **Step 6** — Generation history per project
-- [ ] **Step 7** — Desktop layout adaptation (sidebar + project tabs)
+- [x] **Step 7** — Responsive desktop layout (sidebar + contextual navigation)
 - [ ] **Step 8** — Testing, accessibility audit, production build
 
 ### TODOs (deferred improvements)
 
 | TODO | Description | When |
 |---|---|---|
-| **3.5** — Source catalog reuse UI | Add a "📂 From catalog" button in source list to link existing sources to a project without recreating them. Architecture ready (`getAvailableForProject()` exists), only UI is missing. | Step 7 or standalone |
-| **4.8** — Real RSS fetching | Replace mock data with real RSS feeds via CORS proxy + DOMParser. Mock data is sufficient for Steps 5-6. | After Step 6 |
-| **5.7** — Audit `theme()` in component SCSS | Tailwind `theme()` function doesn't work in Angular component SCSS files. Audit all components and replace with hex values. | Step 7 |
-| **UX** — Dedicated generation page | Create a guided wizard (select articles → choose format → generate) instead of the current selection-first flow. | Step 7 |
+| **3.5** — Source catalog reuse UI | Add a "📂 From catalog" button in source list to link existing sources to a project without recreating them. Architecture ready (`getAvailableForProject()` exists), only UI is missing. | Standalone |
+| **4.8** — Real RSS fetching | Replace mock data with real RSS feeds via CORS proxy + DOMParser. Mock data is sufficient for Steps 5-6. | After Step 8 |
+| **5.7** — Audit `theme()` in component SCSS | Tailwind `theme()` function doesn't work in Angular component SCSS files. Audit all components and replace with hex values. | Step 8 |
+| **6.7** — Dedicated generation page | Create a guided wizard (select articles → choose format → generate) instead of the current selection-first flow. | Standalone |
 
 ## 📄 License
 

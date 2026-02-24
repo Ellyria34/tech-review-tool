@@ -3,7 +3,7 @@
 > **Nom du projet** : TechReviewTool — Agrégateur intelligent de veille technologique
 > **Date de création** : 14 février 2026
 > **Auteur** : Ellyria34 - Sarah LLEON
-> **Statut** : Étape 7 terminée — Layout desktop responsive (sidebar + navigation contextuelle)
+> **Statut** : Étape 7 terminée — Planification backend en cours (étape 8 à venir)
 
 ---
 
@@ -11,7 +11,13 @@
 
 1. [Vision du projet](#1-vision-du-projet)
 2. [Choix technologiques argumentés](#2-choix-technologiques-argumentés)
+   - 2.1 Stack Frontend
+   - 2.5 Stack Backend (planifié)
+   - 2.6 Pourquoi un monorepo
 3. [Architecture globale](#3-architecture-globale)
+   - 3.1–3.4 Frontend (modèle, navigation, layout, composants)
+   - 3.5 Architecture Backend — BFF (planifié)
+   - 3.6 Abstraction IA — Strategy Pattern (planifié)
 4. [Flux de données réactif](#4-flux-de-données-réactif)
 5. [Principes SOLID appliqués à Angular/TypeScript](#5-principes-solid-appliqués-à-angulartypescript)
 6. [Structure du projet](#6-structure-du-projet)
@@ -21,7 +27,7 @@
 10. [Stratégie de tests](#10-stratégie-de-tests)
 11. [Plan d'exécution par étapes](#11-plan-dexécution-par-étapes)
 12. [TODOs — Améliorations reportées](#12-todos--améliorations-reportées)
-13. [Glossaire Angular / TypeScript](#13-glossaire-angular--typescript)
+13. [Glossaire Angular / TypeScript / Backend](#13-glossaire-angular--typescript)
 
 ---
 
@@ -108,6 +114,35 @@ Node.js 22 est en Maintenance LTS (support jusqu'en avril 2027). Node.js 24 est 
 | `theme('colors.teal.700')` | `#0f766e` |
 
 **Règle** : Tailwind dans le HTML (classes utilitaires), hex dans le SCSS (styles composant). Les classes Tailwind dans le template fonctionnent normalement — seule la fonction `theme()` dans les fichiers `.scss` de composants est concernée.
+
+### 2.5 Stack Backend (planifié — Étape 9+)
+
+| Technologie | Version | Justification |
+|---|---|---|
+| **Fastify** | **5.x** | Framework HTTP Node.js plus moderne et plus performant qu'Express. Validation JSON Schema intégrée, système de plugins propre, TypeScript-friendly. Syntaxe quasi identique à Express mais architecture plus robuste. |
+| **@anthropic-ai/sdk** | **latest** | SDK officiel Anthropic pour appeler l'API Claude. Intégration TypeScript native. |
+| **Ollama** | **latest** | Serveur LLM local. S'installe une fois, expose une API REST sur `localhost:11434`. Gratuit, RGPD-friendly (aucune donnée ne quitte la machine). Compatible avec les GPU NVIDIA via CUDA. |
+| **rss-parser** | **latest** | Librairie Node.js pour parser les flux RSS/Atom. Gère les encodages, CDATA, namespaces — bien plus robuste que `DOMParser` côté navigateur. |
+| **zod** | **latest** | Validation et typage des inputs côté serveur. Définit un schéma une fois → validation runtime + types TypeScript générés automatiquement. |
+| **dotenv** | **latest** | Charge les variables d'environnement depuis un fichier `.env`. Les clés API ne sont jamais dans le code source. |
+
+**Pourquoi Fastify plutôt qu'Express ?** Fastify est le choix recommandé pour un nouveau projet Node.js en 2026. Il est plus rapide (benchmarks), a une validation intégrée via JSON Schema, un système de plugins plus propre, et un support TypeScript natif. La syntaxe est quasi identique à Express — la migration de connaissances est immédiate.
+
+**Pourquoi un backend Node.js plutôt que .NET ?** Le projet est un outil d'apprentissage JavaScript/TypeScript full-stack. Utiliser Node.js côté serveur permet de rester dans le même écosystème et de partager les types TypeScript entre frontend et backend (monorepo avec dossier `shared/`).
+
+### 2.6 Pourquoi un monorepo ?
+
+Le projet utilise un **monorepo** (frontend + backend dans le même repository) :
+
+| Argument | Monorepo ✅ | Repos séparés ❌ |
+|---|---|---|
+| Types partagés | 1 source de vérité (`shared/models/`) | Duplication → désynchronisation |
+| Setup développeur | 1 `git clone`, 1 workspace | 2 repos à cloner et synchroniser |
+| Cohérence | 1 PR = 1 feature complète (front + back) | 2 PRs à coordonner |
+| Visibilité GitHub | 1 repo montre le projet complet | Le recruteur peut ne voir que le front |
+| Complexité | Simple pour un projet solo | Overkill sans équipes séparées |
+
+**Principe YAGNI** : on peut toujours extraire le backend dans un repo séparé si un vrai besoin se présente (équipes distinctes, déploiement indépendant). L'inverse (fusionner 2 repos) est bien plus complexe.
 
 ---
 
@@ -206,6 +241,82 @@ Desktop (lg:) :    Sidebar | Contenu                 (layout horizontal)
 | Contenu généré (copier/exporter/supprimer) | GeneratedContentComponent | features/ai-actions/components/ | ✅ |
 | Historique générations | HistoryListComponent | features/history/components/ | ✅ |
 | Temps relatif (pipe) | RelativeTimePipe | shared/pipes/ | ✅ |
+
+### 3.5 Architecture Backend — Pattern BFF (planifié — Étape 9+)
+
+Le backend suit le pattern **BFF (Backend For Frontend)** — un serveur dédié au service du frontend Angular :
+
+```
+┌───────────────────────────────┐
+│        Angular (client)        │
+│                                │
+│  ArticleService → GET /api/rss │
+│  AiService → POST /api/ai/gen │
+│  (aucune clé API, aucun       │
+│   appel RSS direct)            │
+└──────────┬─────────────────────┘
+           │ HTTP (même domaine ou proxy Angular)
+           ▼
+┌───────────────────────────────┐
+│     Fastify (api) — BFF       │
+│                                │
+│  GET  /api/rss/fetch           │
+│    → fetch RSS XML             │
+│    → parse (rss-parser)        │
+│    → filtrer par date          │
+│    → renvoyer JSON             │
+│                                │
+│  POST /api/ai/generate         │
+│    → valider inputs (zod)      │
+│    → construire le prompt      │
+│    → appeler le provider IA    │
+│    → renvoyer le contenu       │
+│                                │
+│  🔐 Clés API en .env          │
+│  🛡️ Rate limiting + CORS      │
+└──────────┬─────────────────────┘
+           │
+     ┌─────┼──────────┐
+     ▼     ▼          ▼
+  Sites   Ollama    API Claude
+  RSS     (local)   (cloud)
+```
+
+**Pourquoi un BFF et pas des appels directs depuis Angular ?**
+
+1. **CORS** : les flux RSS ne renvoient pas d'en-têtes CORS — le navigateur bloque les requêtes cross-origin. Le serveur Node.js n'a pas cette restriction.
+2. **Sécurité des clés API** : les clés Anthropic/OpenAI doivent rester côté serveur. Les mettre dans le code Angular les expose dans les DevTools du navigateur.
+3. **Parsing robuste** : `rss-parser` côté serveur gère les XML mal formés, encodages bizarres, CDATA — bien mieux que `DOMParser` côté client.
+
+### 3.6 Abstraction IA — Strategy Pattern (planifié — Étape 11)
+
+Le backend utilise le **Strategy Pattern** pour supporter plusieurs fournisseurs d'IA de façon interchangeable :
+
+```typescript
+// providers/ai-provider.interface.ts
+export interface AiProvider {
+  readonly name: string;
+  generate(prompt: string, options?: GenerateOptions): Promise<string>;
+}
+
+// Implémentations concrètes :
+// providers/claude.provider.ts    → appelle api.anthropic.com
+// providers/ollama.provider.ts    → appelle localhost:11434
+// providers/mock.provider.ts      → retourne des données fictives (tests)
+```
+
+**Le frontend ne sait pas quel provider est utilisé** — il envoie des articles et reçoit du contenu généré. Le choix du provider est une décision du backend (configurable via variable d'environnement ou paramètre de requête).
+
+**Avantages** :
+- **SOLID-O (Open/Closed)** : ajouter un nouveau provider (ex: OpenAI, Mistral API) = 1 nouveau fichier, zéro modification du code existant
+- **SOLID-L (Liskov)** : tous les providers respectent la même interface — ils sont interchangeables
+- **Testabilité** : le `MockProvider` permet de tester tout le flux sans appel réseau
+- **RGPD** : l'utilisateur peut choisir Ollama (local) pour ne jamais envoyer de données à l'extérieur
+
+**Configuration matérielle pour Ollama** :
+- Machine de développement : Lenovo Legion 5 Pro (AMD Ryzen 7 5800H, **NVIDIA RTX 3060 6 Go VRAM**, 8 Go RAM)
+- Ollama utilise le GPU NVIDIA via CUDA → le modèle tourne dans la VRAM (6 Go), la RAM système reste libre
+- Modèle recommandé : Llama 3.2 7B (~4-5 Go VRAM) → réponses en 2-5 secondes
 
 ---
 
@@ -475,17 +586,29 @@ Pour un projet solo avec montée en compétence :
 | **Pas de tracking** | Télémétrie Angular désactivée, pas de cookies tiers |
 | **Transparence** | L'utilisateur sait quelles données sont stockées et peut les supprimer |
 | **Droit à l'effacement** | Suppression d'un projet = suppression des liaisons et des contenus générés associés (cascade delete) |
+| **Choix du provider IA** | L'utilisateur peut choisir Ollama (local) pour que ses données ne quittent jamais sa machine |
 
-### 8.2 Sécurité applicative
+### 8.2 Sécurité applicative — Frontend
 
 | Mesure | Comment |
 |---|---|
-| Pas de secrets côté client | Les clés API ne sont jamais dans le code source |
+| Pas de secrets côté client | Les clés API ne sont jamais dans le code source Angular |
 | Dépendances auditées | `npm audit` régulier pour détecter les vulnérabilités |
 | Intégrité des paquets | `package-lock.json` committé, vérification SHA-512 automatique par npm |
 | CSP (Content Security Policy) | Headers de sécurité pour empêcher les injections XSS |
 | Liens externes sécurisés | `target="_blank"` toujours avec `rel="noopener noreferrer"` |
 | Clés localStorage non sensibles | Les clés de stockage ne contiennent pas de données personnelles |
+
+### 8.3 Sécurité applicative — Backend (planifié — Étape 9+)
+
+| Mesure | Comment |
+|---|---|
+| **Clés API en variables d'environnement** | Fichier `.env` (dans `.gitignore`), jamais dans le code. Template `.env.example` commité. |
+| **Validation des inputs** | Tous les inputs validés par `zod` avant traitement (URL RSS, articles, type de contenu) |
+| **Rate limiting** | Limite le nombre de requêtes par IP/minute pour éviter les abus |
+| **CORS configuré** | Seul le frontend Angular autorisé (pas de wildcard `*` en production) |
+| **Pas de données personnelles transitées** | Le backend ne stocke pas d'informations utilisateur — il transforme et relaye |
+| **Sanitization des URLs RSS** | Validation du format URL avant fetch pour éviter les SSRF (Server-Side Request Forgery) |
 
 ---
 
@@ -508,15 +631,23 @@ Pour un projet solo avec montée en compétence :
 
 ## 10. Stratégie de tests
 
-| Type | Outil | Quoi tester |
-|---|---|---|
-| **Unitaire** | Vitest (intégré Angular 21) | Services, pipes, logique métier |
-| **Composant** | Vitest + Angular Testing Library | Rendu, interactions utilisateur |
-| **E2E** | Playwright | Parcours utilisateur complets |
+### Approche intercalée (décidée le 24 février 2026)
+
+Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les phases de développement :
+
+| Phase | Type de test | Outil | Quoi tester |
+|---|---|---|---|
+| **Étape 8** (avant backend) | Unitaire + Composant | Vitest + Angular Testing Library | Services, pipes, logique métier frontend — avec les mocks actuels |
+| **Étape 9-12** (pendant backend) | Unitaire backend | Vitest | Routes Fastify, services RSS, providers IA |
+| **Étape 13** (après intégration) | E2E | Playwright | Parcours utilisateur complets (créer projet → ajouter sources → voir articles réels → générer contenu IA) |
+
+**Pourquoi intercaler ?** Tester les services frontend sur les mocks a de la valeur : ça vérifie que la logique métier (filtres, sélection, computed chains) est correcte indépendamment de la source de données. Quand on branchera le vrai backend, si un test casse, on saura que c'est le backend qui pose problème, pas le frontend.
 
 ---
 
 ## 11. Plan d'exécution par étapes
+
+### Phase 1 — Frontend (en cours)
 
 | Étape | Contenu | Statut |
 |---|---|---|
@@ -526,10 +657,39 @@ Pour un projet solo avec montée en compétence :
 | **2** | Feature multi-projets (CRUD projets) | ✅ Terminé |
 | **3** | Gestion des sources RSS par projet (catalogue Many-to-Many) | ✅ Terminé |
 | **4** | Liste d'articles avec filtres, sélection, intégration workspace | ✅ Terminé |
-| **5** | Actions IA (synthèse, revue de presse, LinkedIn) | ✅ Terminé |
+| **5** | Actions IA (synthèse, revue de presse, LinkedIn) — mock | ✅ Terminé |
 | **6** | Historique des générations par projet | ✅ Terminé |
 | **7** | Layout desktop responsive (sidebar + navigation contextuelle) | ✅ Terminé |
-| **8** | Tests, audit accessibilité, build production | ⬜ À faire |
+| **8** | Tests unitaires frontend (Vitest + Angular Testing Library) | ⬜ À faire |
+
+### Phase 2 — Backend + Intégration
+
+| Étape | Contenu | Statut |
+|---|---|---|
+| **8** | Tests unitaires frontend (Vitest + Angular Testing Library) — pont entre les deux phases | ⬜ À faire |
+| **9** | Backend Fastify : setup monorepo + endpoint RSS réel | ⬜ À faire |
+| **10** | Intégration Angular ↔ Backend RSS (remplacement des mocks articles) | ⬜ À faire |
+| **11** | Backend : endpoint IA avec Strategy Pattern (Claude + Ollama + Mock) | ⬜ À faire |
+| **12** | Intégration Angular ↔ Backend IA (remplacement des mocks génération) | ⬜ À faire |
+| **13** | Tests E2E (Playwright), sécurité, RGPD, build production | ⬜ À faire |
+
+> **Pourquoi l'étape 8 apparaît dans les deux phases ?** Elle **ferme** la Phase 1 (le frontend est complet et testé) et **ouvre** la Phase 2 (les tests valident la logique métier avant de brancher le backend — si un test casse après l'intégration, on saura que c'est le backend qui pose problème, pas le frontend).
+
+### Transition Phase 1 → Phase 2 : restructuration monorepo (Étape 9)
+
+À l'étape 9, le repo sera restructuré en monorepo :
+
+```
+tech-review-tool/          (racine du workspace)
+├── client/                ← le code Angular actuel (src/ déplacé ici)
+├── api/                   ← nouveau backend Fastify
+├── shared/                ← types TypeScript partagés (interfaces Article, Source, etc.)
+├── docs/                  ← documentation (inchangé)
+├── package.json           ← workspace racine (npm workspaces)
+└── README.md
+```
+
+Les interfaces TypeScript (`Article`, `Source`, `GeneratedContent`...) actuellement dans `src/app/shared/models/` seront déplacées dans `shared/` pour être importées par le frontend ET le backend — une seule source de vérité.
 
 ---
 
@@ -545,13 +705,9 @@ Pour un projet solo avec montée en compétence :
 
 **Quand** : Sous-étape autonome.
 
-### TODO 4.8 — Récupération RSS réelle
+### ~~TODO 4.8 — Récupération RSS réelle~~ → Absorbé dans les étapes 9-10
 
-**Situation actuelle** : Les articles sont générés par des données mock (`MOCK_ARTICLE_TEMPLATES` dans `shared/data/mock-articles.ts`). Suffisant pour tester les étapes 5-6.
-
-**Ce qu'il faudra** : Un `RssService` avec CORS proxy + `DOMParser` pour parser les vrais flux RSS.
-
-**Quand** : Après l'étape 8 (Tests).
+**Décision du 24 février 2026** : Ce TODO est désormais intégré dans le plan d'exécution principal. L'étape 9 crée le backend avec l'endpoint RSS réel, l'étape 10 connecte Angular au backend. Ce n'est plus un "TODO optionnel" mais une étape à part entière.
 
 ### TODO 5.7 — Audit `theme()` dans les SCSS de composants
 
@@ -607,3 +763,16 @@ Pour un projet solo avec montée en compétence :
 | `Breakpoint CSS` | Point de rupture qui active des styles différents selon la largeur de l'écran. Tailwind utilise `lg:` pour ≥1024px. Un switch de layout purement CSS ne nécessite aucun JavaScript. |
 | `BEM (Block Element Modifier)` | Convention de nommage CSS : `.block`, `.block__element`, `.block--modifier`. En SCSS, on utilise `&--modifier` pour générer `.block--modifier`. Sans `&`, SCSS crée un sélecteur descendant `.block .block--modifier` qui ne fonctionne pas. |
 | `Breakpoint CSS` | Seuil de largeur d'écran qui déclenche un changement de layout. Dans Tailwind, `lg:` correspond à ≥ 1024px. Utilisé pour basculer entre le layout mobile (vertical) et desktop (sidebar horizontale) sans JavaScript. |
+| `BFF (Backend For Frontend)` | Pattern architectural où le backend est dédié à servir un frontend spécifique. Il ne fait que relayer et transformer les données (RSS → JSON, articles → prompt IA → contenu). |
+| `Strategy Pattern` | Pattern de conception (GoF) qui définit une famille d'algorithmes interchangeables derrière une interface commune. Utilisé pour les providers IA (Claude, Ollama, Mock). Le code appelant ne sait pas quel provider est utilisé. |
+| `CORS (Cross-Origin Resource Sharing)` | Mécanisme de sécurité du navigateur qui bloque les requêtes HTTP vers un domaine différent de celui de la page. Les flux RSS ne supportent pas CORS → nécessité d'un backend. |
+| `Monorepo` | Un seul repository Git contenant plusieurs projets/packages. Permet de partager du code (types TypeScript) et de maintenir la cohérence. Outils : npm workspaces, Nx, Turborepo. |
+| `YAGNI (You Ain't Gonna Need It)` | Principe de développement : ne pas implémenter une fonctionnalité tant qu'elle n'est pas nécessaire. Exemple : ne pas séparer en microservices tant qu'un monolithe modulaire suffit. |
+| `Monolithe modulaire` | Architecture où l'application est un seul serveur avec des modules bien séparés (routes RSS, routes IA). Ce n'est PAS des microservices — c'est un seul process, un seul port. C'est le choix recommandé pour 95% des projets. |
+| `Ollama` | Serveur LLM local open source. S'installe une fois sur la machine, expose une API REST sur `localhost:11434`. Tous les projets peuvent l'utiliser, comme un serveur de base de données. Utilise le GPU NVIDIA via CUDA si disponible. |
+| `VRAM` | Video RAM — mémoire dédiée de la carte graphique. Ollama charge le modèle LLM dans la VRAM (pas dans la RAM système). 6 Go de VRAM suffisent pour un modèle 7B. |
+| `CUDA` | Technologie NVIDIA pour exécuter des calculs sur le GPU. Ollama l'utilise automatiquement si une carte NVIDIA est détectée. Accélère considérablement l'inférence LLM (2-5 sec au lieu de 15-30 sec en CPU). |
+| `Provider` | Dans le contexte du Strategy Pattern : une implémentation concrète d'une interface. `ClaudeProvider` et `OllamaProvider` sont deux providers de l'interface `AiProvider`. |
+| `Rate limiting` | Technique de sécurité qui limite le nombre de requêtes qu'un client peut faire par unité de temps. Empêche les abus (DDoS, spam d'API coûteuses). |
+| `zod` | Librairie TypeScript de validation de schémas. Définit un schéma une fois → validation runtime + types TypeScript générés. Remplace la validation manuelle `if (!url) throw...`. |
+| `dotenv` | Librairie qui charge les variables d'environnement depuis un fichier `.env`. Sépare la configuration (clés API, URLs) du code. Le fichier `.env` est dans `.gitignore`, le template `.env.example` est commité. |

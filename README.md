@@ -260,7 +260,7 @@ The frontend doesn't know which provider is used — it sends articles and recei
 
 ## 🗺️ Roadmap
 
-### Phase 1 — Frontend (in progress)
+### Phase 1 — Frontend (completed ✅)
 
 - [x] **Step 0** — Project setup (Angular 21, Git, GitHub)
 - [x] **Step 1** — Project structure, linting, Tailwind CSS, App Shell
@@ -270,11 +270,11 @@ The frontend doesn't know which provider is used — it sends articles and recei
 - [x] **Step 5** — AI-powered content generation (synthesis, press review, LinkedIn)
 - [x] **Step 6** — Generation history per project
 - [x] **Step 7** — Responsive desktop layout (sidebar + contextual navigation)
-- [ ] **Step 8** — Frontend unit tests (Vitest + Angular Testing Library)
+- [x] **Step 8** — Frontend unit tests (Vitest — 138 tests, 7 test files)
 
 ### Phase 2 — Backend + Integration
 
-- [ ] **Step 8** — Frontend unit tests (Vitest + Angular Testing Library)
+- [x] **Step 8** — Frontend unit tests (Vitest — bridge between phases)
 - [ ] **Step 9** — Backend setup: Fastify monorepo + real RSS fetching endpoint
 - [ ] **Step 10** — Frontend ↔ Backend RSS integration (replace mock articles)
 - [ ] **Step 11** — Backend AI endpoint with Strategy Pattern (Claude + Ollama + Mock)

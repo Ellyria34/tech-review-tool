@@ -3,7 +3,7 @@
 > **Nom du projet** : TechReviewTool — Agrégateur intelligent de veille technologique
 > **Date de création** : 14 février 2026
 > **Auteur** : Ellyria34 - Sarah LLEON
-> **Statut** : Étape 7 terminée — Planification backend en cours (étape 8 à venir)
+> **Statut** : Étape 8 terminée — Phase 1 (frontend) complète, Phase 2 (backend) à venir
 
 ---
 
@@ -637,17 +637,66 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 
 | Phase | Type de test | Outil | Quoi tester |
 |---|---|---|---|
-| **Étape 8** (avant backend) | Unitaire + Composant | Vitest + Angular Testing Library | Services, pipes, logique métier frontend — avec les mocks actuels |
+| **Étape 8** (avant backend) | Unitaire + Composant | Vitest | Services, pipes, logique métier frontend — avec les mocks actuels |
 | **Étape 9-12** (pendant backend) | Unitaire backend | Vitest | Routes Fastify, services RSS, providers IA |
 | **Étape 13** (après intégration) | E2E | Playwright | Parcours utilisateur complets (créer projet → ajouter sources → voir articles réels → générer contenu IA) |
 
 **Pourquoi intercaler ?** Tester les services frontend sur les mocks a de la valeur : ça vérifie que la logique métier (filtres, sélection, computed chains) est correcte indépendamment de la source de données. Quand on branchera le vrai backend, si un test casse, on saura que c'est le backend qui pose problème, pas le frontend.
 
+### Résultat de l'étape 8 — 138 tests, 7 fichiers
+
+| Fichier de test | Tests | Ce qui est couvert |
+|---|---|---|
+| `app.spec.ts` | 3 | Shell : layout structure, router-outlet, composants enfants |
+| `relative-time.pipe.spec.ts` | 16 | 5 branches temporelles + edge cases (null, undefined, empty) |
+| `project.service.spec.ts` | 19 | CRUD + Signals + localStorage + validation + fake timers |
+| `source.service.spec.ts` | 33 | Catalogue + Many-to-Many + computed queries + cascade delete |
+| `article.service.spec.ts` | 34 | Chaîne computed + filtres AND + sélection Set + déduplication |
+| `ai.service.spec.ts` | 25 | Génération async + transitions d'état + persistence + cascade |
+| `article-filters.spec.ts` | 8 | Debounce RxJS 300ms + distinctUntilChanged + cleanup destroy$ |
+
+### Règle de décision : quoi tester ?
+
+**On teste** (logique propre) :
+- Services avec logique métier (CRUD, filtres, computed, async)
+- Pipes / Helpers (fonctions pures)
+- Composants avec logique propre (debounce RxJS, état interne complexe)
+
+**On ne teste pas** (logique du framework) :
+- Composants d'affichage (Cards, Lists — juste du HTML avec des `@Input`)
+- Formulaires standards (Validators Angular, patchValue, navigate)
+- Layout (Header, Sidebar, BottomNav — CSS pur)
+
+> **Règle en une phrase** : "Teste TON code, pas celui d'Angular."
+
+### Techniques de test utilisées
+
+| Technique | Pourquoi | Exemple |
+|---|---|---|
+| `vi.useFakeTimers()` + `vi.setSystemTime()` | Contrôler le temps pour des tests déterministes | RelativeTimePipe, filtres temporels, timestamps |
+| `vi.fn()` | Créer des fonctions mock espionnables | `unlinkAllFromProject: vi.fn()` |
+| `{ provide: X, useValue: mock }` | Remplacer un service par un mock dans le DI Angular | SourceService mocké dans ProjectService tests |
+| `vi.advanceTimersByTime(300)` | Avancer l'horloge pour résoudre `debounceTime` RxJS | ArticleFilters debounce 300ms |
+| `vi.advanceTimersByTimeAsync(1000)` | Avancer l'horloge pour résoudre `setTimeout` async | AiService `simulateDelay()` |
+| `localStorage.clear()` dans `beforeEach` | Isoler chaque test (pas d'état résiduel) | Tous les services |
+| Factory function `buildArticle()` | Créer des données de test avec des défauts, override partiel | ArticleService, AiService |
+
+### Angular 21 + Vitest : zoneless testing
+
+Angular 21 utilise Vitest nativement (plus Karma/Jasmine). L'environnement est **zoneless** — Zone.js n'est plus nécessaire. Conséquences :
+
+| Ancien monde (Angular ≤ 18) | Nouveau monde (Angular 21) |
+|---|---|
+| `fakeAsync(() => { })` | Pas besoin — Vitest gère nativement |
+| `tick(300)` | `vi.advanceTimersByTime(300)` |
+| Zone.js obligatoire pour les tests | Zoneless — plus rapide, plus simple |
+| Karma + Jasmine | Vitest (plus rapide, meilleure DX) |
+
 ---
 
 ## 11. Plan d'exécution par étapes
 
-### Phase 1 — Frontend (en cours)
+### Phase 1 — Frontend (terminée ✅)
 
 | Étape | Contenu | Statut |
 |---|---|---|
@@ -660,13 +709,13 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 | **5** | Actions IA (synthèse, revue de presse, LinkedIn) — mock | ✅ Terminé |
 | **6** | Historique des générations par projet | ✅ Terminé |
 | **7** | Layout desktop responsive (sidebar + navigation contextuelle) | ✅ Terminé |
-| **8** | Tests unitaires frontend (Vitest + Angular Testing Library) | ⬜ À faire |
+| **8** | Tests unitaires frontend (Vitest — 138 tests, 7 fichiers) | ✅ Terminé |
 
 ### Phase 2 — Backend + Intégration
 
 | Étape | Contenu | Statut |
 |---|---|---|
-| **8** | Tests unitaires frontend (Vitest + Angular Testing Library) — pont entre les deux phases | ⬜ À faire |
+| **8** | Tests unitaires frontend — pont entre les deux phases | ✅ Terminé |
 | **9** | Backend Fastify : setup monorepo + endpoint RSS réel | ⬜ À faire |
 | **10** | Intégration Angular ↔ Backend RSS (remplacement des mocks articles) | ⬜ À faire |
 | **11** | Backend : endpoint IA avec Strategy Pattern (Claude + Ollama + Mock) | ⬜ À faire |
@@ -776,3 +825,8 @@ Les interfaces TypeScript (`Article`, `Source`, `GeneratedContent`...) actuellem
 | `Rate limiting` | Technique de sécurité qui limite le nombre de requêtes qu'un client peut faire par unité de temps. Empêche les abus (DDoS, spam d'API coûteuses). |
 | `zod` | Librairie TypeScript de validation de schémas. Définit un schéma une fois → validation runtime + types TypeScript générés. Remplace la validation manuelle `if (!url) throw...`. |
 | `dotenv` | Librairie qui charge les variables d'environnement depuis un fichier `.env`. Sépare la configuration (clés API, URLs) du code. Le fichier `.env` est dans `.gitignore`, le template `.env.example` est commité. |
+| `vi.useFakeTimers()` | Fonction Vitest qui remplace l'horloge système par une horloge contrôlée. `new Date()` et `setTimeout` utilisent le temps fictif. Indispensable pour tester du code qui dépend du temps (dates, debounce, délais). |
+| `vi.fn()` | Fonction Vitest qui crée une fonction "espion" (mock). On peut vérifier combien de fois elle a été appelée et avec quels arguments. Équivalent de `Mock<T>()` en C# avec Moq. |
+| `Factory function` | Fonction utilitaire dans les tests qui crée un objet de test avec des valeurs par défaut. `buildArticle({ title: 'Custom' })` crée un Article complet en ne spécifiant que ce qui nous intéresse. Pattern `Partial<T>` + spread `...overrides`. |
+| `Fake timers` | Technique de test qui remplace l'horloge réelle par une horloge contrôlée. Permet de tester du code temporel (debounce, délais, dates) de façon déterministe — le test donne le même résultat à n'importe quelle heure. |
+| `Zoneless` | Angular 21 fonctionne sans Zone.js pour les tests. Les mécanismes de contrôle du temps (`fakeAsync`/`tick`) sont remplacés par les fake timers natifs de Vitest (`vi.useFakeTimers()`/`vi.advanceTimersByTime()`). |

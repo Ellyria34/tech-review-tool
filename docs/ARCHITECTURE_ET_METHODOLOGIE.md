@@ -3,7 +3,7 @@
 > **Nom du projet** : TechReviewTool — Agrégateur intelligent de veille technologique
 > **Date de création** : 14 février 2026
 > **Auteur** : Ellyria34 - Sarah LLEON
-> **Statut** : Étape 8 terminée — Phase 1 (frontend) complète, Phase 2 (backend) à venir
+> **Statut** : Phase 1 (frontend) terminée ✅ — Monorepo restructuré, Phase 2 (backend) en cours
 
 ---
 
@@ -11,13 +11,7 @@
 
 1. [Vision du projet](#1-vision-du-projet)
 2. [Choix technologiques argumentés](#2-choix-technologiques-argumentés)
-   - 2.1 Stack Frontend
-   - 2.5 Stack Backend (planifié)
-   - 2.6 Pourquoi un monorepo
 3. [Architecture globale](#3-architecture-globale)
-   - 3.1–3.4 Frontend (modèle, navigation, layout, composants)
-   - 3.5 Architecture Backend — BFF (planifié)
-   - 3.6 Abstraction IA — Strategy Pattern (planifié)
 4. [Flux de données réactif](#4-flux-de-données-réactif)
 5. [Principes SOLID appliqués à Angular/TypeScript](#5-principes-solid-appliqués-à-angulartypescript)
 6. [Structure du projet](#6-structure-du-projet)
@@ -27,7 +21,7 @@
 10. [Stratégie de tests](#10-stratégie-de-tests)
 11. [Plan d'exécution par étapes](#11-plan-dexécution-par-étapes)
 12. [TODOs — Améliorations reportées](#12-todos--améliorations-reportées)
-13. [Glossaire Angular / TypeScript / Backend](#13-glossaire-angular--typescript)
+13. [Glossaire Angular / TypeScript](#13-glossaire-angular--typescript)
 
 ---
 
@@ -115,34 +109,30 @@ Node.js 22 est en Maintenance LTS (support jusqu'en avril 2027). Node.js 24 est 
 
 **Règle** : Tailwind dans le HTML (classes utilitaires), hex dans le SCSS (styles composant). Les classes Tailwind dans le template fonctionnent normalement — seule la fonction `theme()` dans les fichiers `.scss` de composants est concernée.
 
-### 2.5 Stack Backend (planifié — Étape 9+)
+### 2.5 Monorepo avec npm Workspaces
 
-| Technologie | Version | Justification |
+**Décidé à l'étape 9** : plutôt que de maintenir un repo séparé pour le backend, on restructure en **monorepo** avec npm workspaces.
+
+| Approche | Avantage | Inconvénient |
 |---|---|---|
-| **Fastify** | **5.x** | Framework HTTP Node.js plus moderne et plus performant qu'Express. Validation JSON Schema intégrée, système de plugins propre, TypeScript-friendly. Syntaxe quasi identique à Express mais architecture plus robuste. |
-| **@anthropic-ai/sdk** | **latest** | SDK officiel Anthropic pour appeler l'API Claude. Intégration TypeScript native. |
-| **Ollama** | **latest** | Serveur LLM local. S'installe une fois, expose une API REST sur `localhost:11434`. Gratuit, RGPD-friendly (aucune donnée ne quitte la machine). Compatible avec les GPU NVIDIA via CUDA. |
-| **rss-parser** | **latest** | Librairie Node.js pour parser les flux RSS/Atom. Gère les encodages, CDATA, namespaces — bien plus robuste que `DOMParser` côté navigateur. |
-| **zod** | **latest** | Validation et typage des inputs côté serveur. Définit un schéma une fois → validation runtime + types TypeScript générés automatiquement. |
-| **dotenv** | **latest** | Charge les variables d'environnement depuis un fichier `.env`. Les clés API ne sont jamais dans le code source. |
+| Repos séparés | Isolation totale | Synchronisation des types impossible, 2 repos à maintenir |
+| Monorepo (npm workspaces) | Types partagés, un seul `npm install`, un seul repo Git | Config initiale plus complexe |
+| Monorepo (Nx/Turborepo) | Cache intelligent, graph de dépendances | Overkill pour un projet à 2 workspaces |
 
-**Pourquoi Fastify plutôt qu'Express ?** Fastify est le choix recommandé pour un nouveau projet Node.js en 2026. Il est plus rapide (benchmarks), a une validation intégrée via JSON Schema, un système de plugins plus propre, et un support TypeScript natif. La syntaxe est quasi identique à Express — la migration de connaissances est immédiate.
+**Choix** : npm workspaces natif — zéro outil externe, supporté nativement par npm depuis v7. Suffisant pour notre besoin (2 workspaces : `client` + `api`).
 
-**Pourquoi un backend Node.js plutôt que .NET ?** Le projet est un outil d'apprentissage JavaScript/TypeScript full-stack. Utiliser Node.js côté serveur permet de rester dans le même écosystème et de partager les types TypeScript entre frontend et backend (monorepo avec dossier `shared/`).
+**Fonctionnement** : le `package.json` racine déclare les workspaces. npm **hoist** (remonte) les dépendances partagées dans un seul `node_modules/` à la racine. Chaque workspace a son propre `package.json` avec ses dépendances spécifiques.
 
-### 2.6 Pourquoi un monorepo ?
+```json
+// package.json (racine)
+{
+  "name": "tech-review-tool",
+  "private": true,
+  "workspaces": ["client", "api"]
+}
+```
 
-Le projet utilise un **monorepo** (frontend + backend dans le même repository) :
-
-| Argument | Monorepo ✅ | Repos séparés ❌ |
-|---|---|---|
-| Types partagés | 1 source de vérité (`shared/models/`) | Duplication → désynchronisation |
-| Setup développeur | 1 `git clone`, 1 workspace | 2 repos à cloner et synchroniser |
-| Cohérence | 1 PR = 1 feature complète (front + back) | 2 PRs à coordonner |
-| Visibilité GitHub | 1 repo montre le projet complet | Le recruteur peut ne voir que le front |
-| Complexité | Simple pour un projet solo | Overkill sans équipes séparées |
-
-**Principe YAGNI** : on peut toujours extraire le backend dans un repo séparé si un vrai besoin se présente (équipes distinctes, déploiement indépendant). L'inverse (fusionner 2 repos) est bien plus complexe.
+**Règle** : `npm install` se lance toujours depuis la racine du monorepo. Les commandes spécifiques à un workspace se lancent depuis le dossier du workspace (`cd client && ng serve`).
 
 ---
 
@@ -241,82 +231,6 @@ Desktop (lg:) :    Sidebar | Contenu                 (layout horizontal)
 | Contenu généré (copier/exporter/supprimer) | GeneratedContentComponent | features/ai-actions/components/ | ✅ |
 | Historique générations | HistoryListComponent | features/history/components/ | ✅ |
 | Temps relatif (pipe) | RelativeTimePipe | shared/pipes/ | ✅ |
-
-### 3.5 Architecture Backend — Pattern BFF (planifié — Étape 9+)
-
-Le backend suit le pattern **BFF (Backend For Frontend)** — un serveur dédié au service du frontend Angular :
-
-```
-┌───────────────────────────────┐
-│        Angular (client)        │
-│                                │
-│  ArticleService → GET /api/rss │
-│  AiService → POST /api/ai/gen │
-│  (aucune clé API, aucun       │
-│   appel RSS direct)            │
-└──────────┬─────────────────────┘
-           │ HTTP (même domaine ou proxy Angular)
-           ▼
-┌───────────────────────────────┐
-│     Fastify (api) — BFF       │
-│                                │
-│  GET  /api/rss/fetch           │
-│    → fetch RSS XML             │
-│    → parse (rss-parser)        │
-│    → filtrer par date          │
-│    → renvoyer JSON             │
-│                                │
-│  POST /api/ai/generate         │
-│    → valider inputs (zod)      │
-│    → construire le prompt      │
-│    → appeler le provider IA    │
-│    → renvoyer le contenu       │
-│                                │
-│  🔐 Clés API en .env          │
-│  🛡️ Rate limiting + CORS      │
-└──────────┬─────────────────────┘
-           │
-     ┌─────┼──────────┐
-     ▼     ▼          ▼
-  Sites   Ollama    API Claude
-  RSS     (local)   (cloud)
-```
-
-**Pourquoi un BFF et pas des appels directs depuis Angular ?**
-
-1. **CORS** : les flux RSS ne renvoient pas d'en-têtes CORS — le navigateur bloque les requêtes cross-origin. Le serveur Node.js n'a pas cette restriction.
-2. **Sécurité des clés API** : les clés Anthropic/OpenAI doivent rester côté serveur. Les mettre dans le code Angular les expose dans les DevTools du navigateur.
-3. **Parsing robuste** : `rss-parser` côté serveur gère les XML mal formés, encodages bizarres, CDATA — bien mieux que `DOMParser` côté client.
-
-### 3.6 Abstraction IA — Strategy Pattern (planifié — Étape 11)
-
-Le backend utilise le **Strategy Pattern** pour supporter plusieurs fournisseurs d'IA de façon interchangeable :
-
-```typescript
-// providers/ai-provider.interface.ts
-export interface AiProvider {
-  readonly name: string;
-  generate(prompt: string, options?: GenerateOptions): Promise<string>;
-}
-
-// Implémentations concrètes :
-// providers/claude.provider.ts    → appelle api.anthropic.com
-// providers/ollama.provider.ts    → appelle localhost:11434
-// providers/mock.provider.ts      → retourne des données fictives (tests)
-```
-
-**Le frontend ne sait pas quel provider est utilisé** — il envoie des articles et reçoit du contenu généré. Le choix du provider est une décision du backend (configurable via variable d'environnement ou paramètre de requête).
-
-**Avantages** :
-- **SOLID-O (Open/Closed)** : ajouter un nouveau provider (ex: OpenAI, Mistral API) = 1 nouveau fichier, zéro modification du code existant
-- **SOLID-L (Liskov)** : tous les providers respectent la même interface — ils sont interchangeables
-- **Testabilité** : le `MockProvider` permet de tester tout le flux sans appel réseau
-- **RGPD** : l'utilisateur peut choisir Ollama (local) pour ne jamais envoyer de données à l'extérieur
-
-**Configuration matérielle pour Ollama** :
-- Machine de développement : Lenovo Legion 5 Pro (AMD Ryzen 7 5800H, **NVIDIA RTX 3060 6 Go VRAM**, 8 Go RAM)
-- Ollama utilise le GPU NVIDIA via CUDA → le modèle tourne dans la VRAM (6 Go), la RAM système reste libre
-- Modèle recommandé : Llama 3.2 7B (~4-5 Go VRAM) → réponses en 2-5 secondes
 
 ---
 
@@ -482,59 +396,66 @@ Les composants dépendent d'abstractions (interfaces/tokens), pas d'implémentat
 
 ## 6. Structure du projet
 
+### 6.1 Structure monorepo
+
 ```
-src/
-├── app/
-│   ├── core/                  # Singleton : composants, services, guards, interceptors
-│   │   ├── components/
-│   │   │   ├── bottom-nav/    # Navigation mobile contextuelle (visible dans un projet uniquement)
-│   │   │   ├── header/        # Header de l'app (mobile uniquement, masqué sur desktop)
-│   │   │   └── sidebar/       # Sidebar desktop (liste projets + navigation contextuelle projet)
-│   │   ├── services/
-│   │   │   └── storage.helper.ts  # Helpers localStorage partagés (loadFromStorage, saveToStorage)
-│   │   ├── guards/
-│   │   └── interceptors/
-│   ├── features/              # Domaines fonctionnels
-│   │   ├── projects/          # CRUD projets
-│   │   │   ├── components/    # project-list, project-card, project-form, project-workspace
-│   │   │   └── services/      # project.service.ts (Signals + localStorage)
-│   │   ├── sources/           # Gestion des sources RSS (Many-to-Many)
-│   │   │   ├── components/    # source-list, source-card, source-form
-│   │   │   └── services/      # source.service.ts (catalogue + liaisons + localStorage)
-│   │   ├── articles/          # Liste d'articles, filtres, sélection
-│   │   │   ├── components/    # article-list, article-card, article-filters
-│   │   │   └── services/      # article.service.ts (computed chain + selection Set + mock)
-│   │   ├── ai-actions/        # Génération IA (synthèse, revue de presse, LinkedIn)
-│   │   │   ├── components/    # ai-action-panel (bottom sheet), generated-content (affichage + copie/export)
-│   │   │   └── services/      # ai.service.ts (génération mock + localStorage)
-│   │   └── history/           # Historique des générations par projet
-│   │       └── components/    # history-list (page complète avec suppression)
-│   ├── shared/                # Composants réutilisables, pipes, directives
-│   │   ├── components/
-│   │   ├── data/              # Données centralisées (catégories, mock articles)
-│   │   ├── models/            # Interfaces TypeScript (ReviewProject, Source, Article, GeneratedContent...)
-│   │   ├── pipes/
-│   │   │   └── relative-time.pipe.ts  # "Il y a 2h", "Hier à 14h30", "20/02/2026"
-│   │   └── directives/
-│   ├── app.ts                 # Composant racine
-│   ├── app.html               # Template racine (App Shell)
-│   ├── app.scss               # Styles racine
-│   ├── app.spec.ts            # Tests du composant racine
-│   ├── app.config.ts          # Configuration (providers, DI)
-│   └── app.routes.ts          # Routes principales
-├── index.html                 # Page HTML principale
-├── main.ts                    # Point d'entrée de l'application
-├── styles.scss                # Styles globaux (variables SCSS, reset)
-└── tailwind.css               # Point d'entrée Tailwind CSS
+tech-review-tool/                  ← Monorepo root (npm workspaces)
+├── client/                        ← Frontend Angular
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── core/              # Singleton : composants, services, guards, interceptors
+│   │   │   │   ├── components/
+│   │   │   │   │   ├── bottom-nav/    # Navigation mobile contextuelle
+│   │   │   │   │   ├── header/        # Header de l'app (mobile uniquement)
+│   │   │   │   │   └── sidebar/       # Sidebar desktop (liste projets + nav)
+│   │   │   │   └── services/
+│   │   │   │       └── storage.helper.ts
+│   │   │   ├── features/          # Domaines fonctionnels
+│   │   │   │   ├── projects/      # CRUD projets
+│   │   │   │   ├── sources/       # Gestion des sources RSS (Many-to-Many)
+│   │   │   │   ├── articles/      # Liste d'articles, filtres, sélection
+│   │   │   │   ├── ai-actions/    # Génération IA (synthèse, revue de presse, LinkedIn)
+│   │   │   │   └── history/       # Historique des générations par projet
+│   │   │   └── shared/            # Composants réutilisables, pipes, directives, modèles
+│   │   │       ├── data/          # Données centralisées (catégories, mock articles)
+│   │   │       ├── models/        # Interfaces TypeScript
+│   │   │       └── pipes/         # RelativeTimePipe
+│   │   ├── index.html
+│   │   ├── main.ts
+│   │   ├── styles.scss
+│   │   └── tailwind.css
+│   ├── angular.json
+│   ├── eslint.config.js
+│   ├── package.json               # Dépendances Angular
+│   ├── tsconfig.json
+│   ├── tsconfig.app.json
+│   └── tsconfig.spec.json
+├── api/                           ← Backend Fastify (étape 9 — en cours)
+│   └── package.json               # Dépendances Fastify (placeholder)
+├── docs/
+│   └── ARCHITECTURE_ET_METHODOLOGIE.md
+├── package.json                   # Workspace root (npm workspaces)
+├── package-lock.json              # Lock file unique pour tous les workspaces
+└── README.md
 ```
 
-**Logique d'organisation** :
+### 6.2 Logique d'organisation Angular (client/)
 
 | Dossier | Rôle | Combien de fois utilisé ? |
 |---|---|---|
 | `core/` | Composants et services singleton (app-level) | 1 fois dans l'app |
 | `features/` | Domaines métier isolés | Spécifique à chaque domaine |
 | `shared/` | Composants, pipes, directives réutilisables | N fois dans plusieurs features |
+
+### 6.3 Logique d'organisation monorepo (racine)
+
+| Dossier | Rôle | Package manager |
+|---|---|---|
+| `client/` | Frontend Angular — tout le code UI | `package.json` propre (Angular, Tailwind, Vitest) |
+| `api/` | Backend Fastify — API REST, RSS, IA | `package.json` propre (Fastify, rss-parser, providers IA) |
+| Racine | Orchestration des workspaces | `package.json` avec `"workspaces": ["client", "api"]` |
+
+**Règle** : `npm install` se lance toujours depuis la **racine**. Les commandes spécifiques (`ng serve`, `ng test`) se lancent depuis le **dossier du workspace** (`cd client`).
 
 ---
 
@@ -551,7 +472,7 @@ Chaque commit suit le format : `type(scope): description`
 | `chore` | Maintenance, config | `chore: add .gitattributes for LF normalization` |
 | `docs` | Documentation | `docs: update README with Step 5 completion` |
 | `style` | Formatage (pas de logique) | `style: fix indentation in app.html` |
-| `refactor` | Refactoring sans changement fonctionnel | `refactor: extract localStorage helpers into storage.helper.ts` |
+| `refactor` | Refactoring sans changement fonctionnel | `refactor: restructure to monorepo with npm workspaces` |
 | `test` | Ajout/modification de tests | `test(projects): add unit tests for ProjectService` |
 
 ### 7.2 Branching Strategy
@@ -566,7 +487,7 @@ Pour un projet solo avec montée en compétence :
 ```
 1. git checkout -b feat/project-list    # Nouvelle branche
 2. git push -u origin feat/project-list # Lier branche locale ↔ distante
-3. Coder + tester localement            # ng serve
+3. Coder + tester localement            # cd client && ng serve
 4. git add . && git commit              # Commits réguliers
 5. git push                             # Push (sans préciser origin grâce au -u)
 6. Créer une Pull Request sur GitHub    # Revue de code
@@ -586,29 +507,17 @@ Pour un projet solo avec montée en compétence :
 | **Pas de tracking** | Télémétrie Angular désactivée, pas de cookies tiers |
 | **Transparence** | L'utilisateur sait quelles données sont stockées et peut les supprimer |
 | **Droit à l'effacement** | Suppression d'un projet = suppression des liaisons et des contenus générés associés (cascade delete) |
-| **Choix du provider IA** | L'utilisateur peut choisir Ollama (local) pour que ses données ne quittent jamais sa machine |
 
-### 8.2 Sécurité applicative — Frontend
+### 8.2 Sécurité applicative
 
 | Mesure | Comment |
 |---|---|
-| Pas de secrets côté client | Les clés API ne sont jamais dans le code source Angular |
+| Pas de secrets côté client | Les clés API ne sont jamais dans le code source |
 | Dépendances auditées | `npm audit` régulier pour détecter les vulnérabilités |
 | Intégrité des paquets | `package-lock.json` committé, vérification SHA-512 automatique par npm |
 | CSP (Content Security Policy) | Headers de sécurité pour empêcher les injections XSS |
 | Liens externes sécurisés | `target="_blank"` toujours avec `rel="noopener noreferrer"` |
 | Clés localStorage non sensibles | Les clés de stockage ne contiennent pas de données personnelles |
-
-### 8.3 Sécurité applicative — Backend (planifié — Étape 9+)
-
-| Mesure | Comment |
-|---|---|
-| **Clés API en variables d'environnement** | Fichier `.env` (dans `.gitignore`), jamais dans le code. Template `.env.example` commité. |
-| **Validation des inputs** | Tous les inputs validés par `zod` avant traitement (URL RSS, articles, type de contenu) |
-| **Rate limiting** | Limite le nombre de requêtes par IP/minute pour éviter les abus |
-| **CORS configuré** | Seul le frontend Angular autorisé (pas de wildcard `*` en production) |
-| **Pas de données personnelles transitées** | Le backend ne stocke pas d'informations utilisateur — il transforme et relaye |
-| **Sanitization des URLs RSS** | Validation du format URL avant fetch pour éviter les SSRF (Server-Side Request Forgery) |
 
 ---
 
@@ -637,60 +546,64 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 
 | Phase | Type de test | Outil | Quoi tester |
 |---|---|---|---|
-| **Étape 8** (avant backend) | Unitaire + Composant | Vitest | Services, pipes, logique métier frontend — avec les mocks actuels |
-| **Étape 9-12** (pendant backend) | Unitaire backend | Vitest | Routes Fastify, services RSS, providers IA |
+| **Étape 8** (fin Phase 1) | Unitaire + Composant | Vitest + Angular Testing Library | Services, pipes, logique métier frontend — avec les mocks actuels |
+| **Étapes 9-12** (pendant backend) | Unitaire backend | Vitest | Routes Fastify, services RSS, providers IA |
 | **Étape 13** (après intégration) | E2E | Playwright | Parcours utilisateur complets (créer projet → ajouter sources → voir articles réels → générer contenu IA) |
 
 **Pourquoi intercaler ?** Tester les services frontend sur les mocks a de la valeur : ça vérifie que la logique métier (filtres, sélection, computed chains) est correcte indépendamment de la source de données. Quand on branchera le vrai backend, si un test casse, on saura que c'est le backend qui pose problème, pas le frontend.
 
-### Résultat de l'étape 8 — 138 tests, 7 fichiers
-
-| Fichier de test | Tests | Ce qui est couvert |
-|---|---|---|
-| `app.spec.ts` | 3 | Shell : layout structure, router-outlet, composants enfants |
-| `relative-time.pipe.spec.ts` | 16 | 5 branches temporelles + edge cases (null, undefined, empty) |
-| `project.service.spec.ts` | 19 | CRUD + Signals + localStorage + validation + fake timers |
-| `source.service.spec.ts` | 33 | Catalogue + Many-to-Many + computed queries + cascade delete |
-| `article.service.spec.ts` | 34 | Chaîne computed + filtres AND + sélection Set + déduplication |
-| `ai.service.spec.ts` | 25 | Génération async + transitions d'état + persistence + cascade |
-| `article-filters.spec.ts` | 8 | Debounce RxJS 300ms + distinctUntilChanged + cleanup destroy$ |
-
 ### Règle de décision : quoi tester ?
 
-**On teste** (logique propre) :
-- Services avec logique métier (CRUD, filtres, computed, async)
-- Pipes / Helpers (fonctions pures)
-- Composants avec logique propre (debounce RxJS, état interne complexe)
+| Type de code | Tester ? | Pourquoi |
+|---|---|---|
+| **Services** (logique métier) | ✅ Oui — priorité maximale | C'est TON code, c'est la logique métier |
+| **Pipes** (transformateurs) | ✅ Oui | Fonctions pures, faciles à tester, beaucoup de branches |
+| **Composants avec logique propre** (debounce, RxJS) | ✅ Oui | Logique qui n'est pas dans un service |
+| **Composants d'affichage** (cards, lists) | ❌ Non | Juste du HTML — testés par les tests E2E |
+| **Formulaires** (FormBuilder, Validators, Router) | ❌ Non | "Plomberie" Angular — déjà testée par le framework |
+| **Composants orchestrateurs** (workspace) | ❌ Non | Connectent des services déjà testés à 100% |
 
-**On ne teste pas** (logique du framework) :
-- Composants d'affichage (Cards, Lists — juste du HTML avec des `@Input`)
-- Formulaires standards (Validators Angular, patchValue, navigate)
-- Layout (Header, Sidebar, BottomNav — CSS pur)
+### Fichiers de test — Étape 8
 
-> **Règle en une phrase** : "Teste TON code, pas celui d'Angular."
+| Fichier | Tests | Ce qui est couvert |
+|---|---|---|
+| `app.spec.ts` | 3 | Layout shell (header, sidebar, bottom-nav, router-outlet) |
+| `relative-time.pipe.spec.ts` | 16 | 5 branches temporelles, fuseaux horaires |
+| `project.service.spec.ts` | 19 | CRUD complet, validation, cascade delete, timestamps |
+| `source.service.spec.ts` | 33 | Catalogue CRUD, liaisons Many-to-Many, computed queries |
+| `article.service.spec.ts` | 34 | Chaîne computed, filtres combinés, sélection, déduplication |
+| `ai.service.spec.ts` | 20 | Génération async, transitions d'état, persistence, cascade |
+| `article-filters.spec.ts` | 8 | Debounce RxJS 300ms, distinctUntilChanged, cleanup destroy$ |
+| **Total** | **133** | **4/4 services, 1/1 pipe, 2 composants (les seuls avec logique)** |
 
 ### Techniques de test utilisées
 
-| Technique | Pourquoi | Exemple |
-|---|---|---|
-| `vi.useFakeTimers()` + `vi.setSystemTime()` | Contrôler le temps pour des tests déterministes | RelativeTimePipe, filtres temporels, timestamps |
-| `vi.fn()` | Créer des fonctions mock espionnables | `unlinkAllFromProject: vi.fn()` |
-| `{ provide: X, useValue: mock }` | Remplacer un service par un mock dans le DI Angular | SourceService mocké dans ProjectService tests |
-| `vi.advanceTimersByTime(300)` | Avancer l'horloge pour résoudre `debounceTime` RxJS | ArticleFilters debounce 300ms |
-| `vi.advanceTimersByTimeAsync(1000)` | Avancer l'horloge pour résoudre `setTimeout` async | AiService `simulateDelay()` |
-| `localStorage.clear()` dans `beforeEach` | Isoler chaque test (pas d'état résiduel) | Tous les services |
-| Factory function `buildArticle()` | Créer des données de test avec des défauts, override partiel | ArticleService, AiService |
-
-### Angular 21 + Vitest : zoneless testing
-
-Angular 21 utilise Vitest nativement (plus Karma/Jasmine). L'environnement est **zoneless** — Zone.js n'est plus nécessaire. Conséquences :
-
-| Ancien monde (Angular ≤ 18) | Nouveau monde (Angular 21) |
+| Technique | Pourquoi |
 |---|---|
-| `fakeAsync(() => { })` | Pas besoin — Vitest gère nativement |
-| `tick(300)` | `vi.advanceTimersByTime(300)` |
-| Zone.js obligatoire pour les tests | Zoneless — plus rapide, plus simple |
-| Karma + Jasmine | Vitest (plus rapide, meilleure DX) |
+| `vi.useFakeTimers()` + `vi.setSystemTime()` | Contrôler `new Date()`, `setTimeout`, `debounceTime` — tests déterministes |
+| `vi.fn()` + `.toHaveBeenCalledWith()` | Mocks de fonctions — vérifier les appels et arguments |
+| `vi.advanceTimersByTime(ms)` | Avancer le temps pour résoudre debounce/delay sans attendre |
+| `vi.advanceTimersByTimeAsync(ms)` | Idem mais pour les Promises (AiService `simulateDelay`) |
+| Factory functions (`buildArticle()`) | `Partial<T>` + spread — créer des objets de test lisibles |
+| `localStorage.clear()` dans `beforeEach` + `afterEach` | Double nettoyage pour l'isolation entre tests |
+
+### Angular 21 et les tests — mode zoneless
+
+Angular 21 fonctionne **sans Zone.js** par défaut. Les utilitaires de test historiques (`fakeAsync`, `tick`) nécessitent Zone.js et ne fonctionnent plus. On utilise les fake timers natifs de Vitest à la place :
+
+```typescript
+// ❌ NE FONCTIONNE PLUS en Angular 21 zoneless
+it('should debounce', fakeAsync(() => {
+  tick(300);
+}));
+
+// ✅ CORRECT — fake timers Vitest natifs
+it('should debounce', () => {
+  vi.useFakeTimers();
+  vi.advanceTimersByTime(300);
+  vi.useRealTimers();
+});
+```
 
 ---
 
@@ -709,36 +622,17 @@ Angular 21 utilise Vitest nativement (plus Karma/Jasmine). L'environnement est *
 | **5** | Actions IA (synthèse, revue de presse, LinkedIn) — mock | ✅ Terminé |
 | **6** | Historique des générations par projet | ✅ Terminé |
 | **7** | Layout desktop responsive (sidebar + navigation contextuelle) | ✅ Terminé |
-| **8** | Tests unitaires frontend (Vitest — 138 tests, 7 fichiers) | ✅ Terminé |
+| **8** | Tests unitaires frontend (Vitest — 133 tests, 7 fichiers) | ✅ Terminé |
 
 ### Phase 2 — Backend + Intégration
 
 | Étape | Contenu | Statut |
 |---|---|---|
-| **8** | Tests unitaires frontend — pont entre les deux phases | ✅ Terminé |
-| **9** | Backend Fastify : setup monorepo + endpoint RSS réel | ⬜ À faire |
+| **9** | Backend Fastify : setup monorepo + endpoint RSS réel | 🔄 En cours |
 | **10** | Intégration Angular ↔ Backend RSS (remplacement des mocks articles) | ⬜ À faire |
 | **11** | Backend : endpoint IA avec Strategy Pattern (Claude + Ollama + Mock) | ⬜ À faire |
 | **12** | Intégration Angular ↔ Backend IA (remplacement des mocks génération) | ⬜ À faire |
 | **13** | Tests E2E (Playwright), sécurité, RGPD, build production | ⬜ À faire |
-
-> **Pourquoi l'étape 8 apparaît dans les deux phases ?** Elle **ferme** la Phase 1 (le frontend est complet et testé) et **ouvre** la Phase 2 (les tests valident la logique métier avant de brancher le backend — si un test casse après l'intégration, on saura que c'est le backend qui pose problème, pas le frontend).
-
-### Transition Phase 1 → Phase 2 : restructuration monorepo (Étape 9)
-
-À l'étape 9, le repo sera restructuré en monorepo :
-
-```
-tech-review-tool/          (racine du workspace)
-├── client/                ← le code Angular actuel (src/ déplacé ici)
-├── api/                   ← nouveau backend Fastify
-├── shared/                ← types TypeScript partagés (interfaces Article, Source, etc.)
-├── docs/                  ← documentation (inchangé)
-├── package.json           ← workspace racine (npm workspaces)
-└── README.md
-```
-
-Les interfaces TypeScript (`Article`, `Source`, `GeneratedContent`...) actuellement dans `src/app/shared/models/` seront déplacées dans `shared/` pour être importées par le frontend ET le backend — une seule source de vérité.
 
 ---
 
@@ -754,9 +648,13 @@ Les interfaces TypeScript (`Article`, `Source`, `GeneratedContent`...) actuellem
 
 **Quand** : Sous-étape autonome.
 
-### ~~TODO 4.8 — Récupération RSS réelle~~ → Absorbé dans les étapes 9-10
+### TODO 4.8 — Récupération RSS réelle
 
-**Décision du 24 février 2026** : Ce TODO est désormais intégré dans le plan d'exécution principal. L'étape 9 crée le backend avec l'endpoint RSS réel, l'étape 10 connecte Angular au backend. Ce n'est plus un "TODO optionnel" mais une étape à part entière.
+**Situation actuelle** : Les articles sont générés par des données mock (`MOCK_ARTICLE_TEMPLATES` dans `shared/data/mock-articles.ts`). Suffisant pour tester les étapes 5-6.
+
+**Ce qu'il faudra** : Un endpoint backend `GET /api/rss/fetch` qui parse les vrais flux RSS côté serveur (pas de CORS côté client).
+
+**Quand** : Étapes 9-10 (backend + intégration).
 
 ### TODO 5.7 — Audit `theme()` dans les SCSS de composants
 
@@ -764,7 +662,7 @@ Les interfaces TypeScript (`Article`, `Source`, `GeneratedContent`...) actuellem
 
 **Ce qu'il faudra** : Auditer tous les SCSS de composants existants pour remplacer d'éventuels `theme()` restants par les valeurs hex.
 
-**Quand** : Étape 8 (audit global).
+**Quand** : Sous-étape autonome.
 
 ### TODO 6.7 — Page de génération guidée (wizard)
 
@@ -790,7 +688,7 @@ Les interfaces TypeScript (`Article`, `Source`, `GeneratedContent`...) actuellem
 | `Route` | Association entre une URL et un composant. Définies dans `app.routes.ts`. |
 | `Guard` | Fonction qui protège l'accès à une route (ex: vérifier qu'un projet existe avant d'y accéder). |
 | `Interceptor` | Fonction qui intercepte les requêtes HTTP sortantes (ex: ajouter un token d'authentification). |
-| `Pipe` | Transformateur de données dans le template (ex: `{{ date \| dateFormat }}`). |
+| `Pipe` | Transformateur de données dans le template (ex: `{{ date \| relativeTime }}`). Pur par défaut (recalculé uniquement quand l'entrée change). |
 | `Directive` | Attribut qui modifie le comportement d'un élément HTML existant. |
 | `DI (Dependency Injection)` | Mécanisme Angular qui fournit automatiquement les services aux composants qui en ont besoin via `inject()`. |
 | `Standalone Component` | Composant auto-suffisant qui déclare ses propres imports. Pas besoin de NgModule (standard depuis Angular 17+). |
@@ -804,29 +702,12 @@ Les interfaces TypeScript (`Article`, `Source`, `GeneratedContent`...) actuellem
 | `Promise<T>` | Représente une opération asynchrone qui retournera une valeur de type T. Utilisé avec `async/await`. |
 | `Bottom sheet` | Pattern mobile : panneau glissant depuis le bas de l'écran. Utilisé pour le panneau d'actions IA. |
 | `Blob` | Objet représentant des données binaires en mémoire. Utilisé pour l'export de fichiers côté client. |
-| `Pipe` | Transformateur de données dans le template. `{{ date \| relativeTime }}` transforme une date ISO en "Il y a 2h". Pur par défaut (recalculé uniquement quand l'entrée change). |
 | `Accordion` | Pattern UI où cliquer sur un élément l'expand pour montrer son contenu, recliquer le referme. Utilisé dans l'aperçu historique du workspace. |
-| `toSignal()` | Convertit un Observable RxJS en Signal Angular. Utilisé pour les paramètres de route (`route.paramMap`) afin que le composant réagisse quand l'URL change sans être détruit/recréé. |
-| `effect()` | Fonction qui s'exécute automatiquement quand un signal qu'elle lit change. Utilisée pour les effets de bord réactifs (ex: `setCurrentProject()` quand l'ID de route change). Préférée à `ngOnInit()` quand l'effet dépend de valeurs réactives. |
 | `BEM` | Convention de nommage CSS : Block Element Modifier (`.block`, `.block__element`, `.block--modifier`). En SCSS, le `&` référence le sélecteur parent : `&--modifier` génère `.block--modifier`. Sans `&`, on crée un sélecteur descendant qui ne matchera pas. |
 | `Breakpoint CSS` | Point de rupture qui active des styles différents selon la largeur de l'écran. Tailwind utilise `lg:` pour ≥1024px. Un switch de layout purement CSS ne nécessite aucun JavaScript. |
-| `BEM (Block Element Modifier)` | Convention de nommage CSS : `.block`, `.block__element`, `.block--modifier`. En SCSS, on utilise `&--modifier` pour générer `.block--modifier`. Sans `&`, SCSS crée un sélecteur descendant `.block .block--modifier` qui ne fonctionne pas. |
-| `Breakpoint CSS` | Seuil de largeur d'écran qui déclenche un changement de layout. Dans Tailwind, `lg:` correspond à ≥ 1024px. Utilisé pour basculer entre le layout mobile (vertical) et desktop (sidebar horizontale) sans JavaScript. |
-| `BFF (Backend For Frontend)` | Pattern architectural où le backend est dédié à servir un frontend spécifique. Il ne fait que relayer et transformer les données (RSS → JSON, articles → prompt IA → contenu). |
-| `Strategy Pattern` | Pattern de conception (GoF) qui définit une famille d'algorithmes interchangeables derrière une interface commune. Utilisé pour les providers IA (Claude, Ollama, Mock). Le code appelant ne sait pas quel provider est utilisé. |
-| `CORS (Cross-Origin Resource Sharing)` | Mécanisme de sécurité du navigateur qui bloque les requêtes HTTP vers un domaine différent de celui de la page. Les flux RSS ne supportent pas CORS → nécessité d'un backend. |
-| `Monorepo` | Un seul repository Git contenant plusieurs projets/packages. Permet de partager du code (types TypeScript) et de maintenir la cohérence. Outils : npm workspaces, Nx, Turborepo. |
-| `YAGNI (You Ain't Gonna Need It)` | Principe de développement : ne pas implémenter une fonctionnalité tant qu'elle n'est pas nécessaire. Exemple : ne pas séparer en microservices tant qu'un monolithe modulaire suffit. |
-| `Monolithe modulaire` | Architecture où l'application est un seul serveur avec des modules bien séparés (routes RSS, routes IA). Ce n'est PAS des microservices — c'est un seul process, un seul port. C'est le choix recommandé pour 95% des projets. |
-| `Ollama` | Serveur LLM local open source. S'installe une fois sur la machine, expose une API REST sur `localhost:11434`. Tous les projets peuvent l'utiliser, comme un serveur de base de données. Utilise le GPU NVIDIA via CUDA si disponible. |
-| `VRAM` | Video RAM — mémoire dédiée de la carte graphique. Ollama charge le modèle LLM dans la VRAM (pas dans la RAM système). 6 Go de VRAM suffisent pour un modèle 7B. |
-| `CUDA` | Technologie NVIDIA pour exécuter des calculs sur le GPU. Ollama l'utilise automatiquement si une carte NVIDIA est détectée. Accélère considérablement l'inférence LLM (2-5 sec au lieu de 15-30 sec en CPU). |
-| `Provider` | Dans le contexte du Strategy Pattern : une implémentation concrète d'une interface. `ClaudeProvider` et `OllamaProvider` sont deux providers de l'interface `AiProvider`. |
-| `Rate limiting` | Technique de sécurité qui limite le nombre de requêtes qu'un client peut faire par unité de temps. Empêche les abus (DDoS, spam d'API coûteuses). |
-| `zod` | Librairie TypeScript de validation de schémas. Définit un schéma une fois → validation runtime + types TypeScript générés. Remplace la validation manuelle `if (!url) throw...`. |
-| `dotenv` | Librairie qui charge les variables d'environnement depuis un fichier `.env`. Sépare la configuration (clés API, URLs) du code. Le fichier `.env` est dans `.gitignore`, le template `.env.example` est commité. |
-| `vi.useFakeTimers()` | Fonction Vitest qui remplace l'horloge système par une horloge contrôlée. `new Date()` et `setTimeout` utilisent le temps fictif. Indispensable pour tester du code qui dépend du temps (dates, debounce, délais). |
-| `vi.fn()` | Fonction Vitest qui crée une fonction "espion" (mock). On peut vérifier combien de fois elle a été appelée et avec quels arguments. Équivalent de `Mock<T>()` en C# avec Moq. |
-| `Factory function` | Fonction utilitaire dans les tests qui crée un objet de test avec des valeurs par défaut. `buildArticle({ title: 'Custom' })` crée un Article complet en ne spécifiant que ce qui nous intéresse. Pattern `Partial<T>` + spread `...overrides`. |
-| `Fake timers` | Technique de test qui remplace l'horloge réelle par une horloge contrôlée. Permet de tester du code temporel (debounce, délais, dates) de façon déterministe — le test donne le même résultat à n'importe quelle heure. |
-| `Zoneless` | Angular 21 fonctionne sans Zone.js pour les tests. Les mécanismes de contrôle du temps (`fakeAsync`/`tick`) sont remplacés par les fake timers natifs de Vitest (`vi.useFakeTimers()`/`vi.advanceTimersByTime()`). |
+| `npm workspaces` | Fonctionnalité native de npm (depuis v7) permettant de gérer plusieurs packages dans un seul repo. Les dépendances sont hoistées (remontées) dans un `node_modules/` unique à la racine. Chaque workspace a son propre `package.json`. |
+| `Hoisting` | Mécanisme npm workspaces qui remonte les dépendances partagées dans le `node_modules/` racine. Si `client` et `api` utilisent tous les deux `typescript`, il n'est installé qu'une seule fois. |
+| `Fake timers` | Technique de test qui remplace `Date`, `setTimeout`, `setInterval` par des implémentations contrôlables. `vi.useFakeTimers()` active le mode, `vi.advanceTimersByTime(ms)` avance le temps. Indispensable pour tester du code asynchrone de façon déterministe. |
+| `vi.fn()` | Crée une fonction mock dans Vitest. `.toHaveBeenCalledWith()` vérifie les arguments, `.toHaveBeenCalledTimes()` le nombre d'appels, `.mockClear()` remet les compteurs à zéro. |
+| `Factory function (test)` | Fonction utilitaire qui crée des objets de test avec des valeurs par défaut. `buildArticle({ title: 'Custom' })` crée un Article complet en ne spécifiant que ce qui change. Pattern `Partial<T>` + spread. |
+| `Zoneless` | Mode Angular 21 par défaut où Zone.js n'est plus chargé. Les utilitaires historiques (`fakeAsync`, `tick`) ne fonctionnent plus — remplacés par les fake timers natifs de Vitest. |

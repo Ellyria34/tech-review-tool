@@ -3,7 +3,7 @@
 > **Nom du projet** : TechReviewTool — Agrégateur intelligent de veille technologique
 > **Date de création** : 14 février 2026
 > **Auteur** : Ellyria34 - Sarah LLEON
-> **Statut** : Phase 1 (frontend) terminée ✅ — Monorepo restructuré, Phase 2 (backend) en cours
+> **Statut** : Phase 1 (frontend) terminée ✅ — Phase 2 (backend) en cours — Step 9 terminé (Fastify + RSS + proxy)
 
 ---
 
@@ -133,6 +133,69 @@ Node.js 22 est en Maintenance LTS (support jusqu'en avril 2027). Node.js 24 est 
 ```
 
 **Règle** : `npm install` se lance toujours depuis la racine du monorepo. Les commandes spécifiques à un workspace se lancent depuis le dossier du workspace (`cd client && ng serve`).
+
+### 2.6 Stack Backend
+
+| Technologie | Version | Justification |
+|---|---|---|
+| **Fastify** | **5.x** | Framework HTTP minimaliste et performant pour Node.js. Non-opinionated — on construit l'architecture nous-mêmes, ce qui permet de comprendre les fondations (routes, middleware, cycle requête/réponse). TypeScript-friendly avec support natif. |
+| **TypeScript** | **5.9** (dernière stable) | Même langage que le frontend Angular. Configuration stricte (`strict: true`, `noUncheckedIndexedAccess`, `verbatimModuleSyntax`) pour un typage maximal. |
+| **tsx** | **4.x** | Exécuteur TypeScript qui compile et recharge à la volée. `tsx watch` relance le serveur à chaque modification — équivalent de `ng serve` pour le backend. |
+| **@rowanmanning/feed-parser** | **2.x** | Parser RSS et Atom activement maintenu, testé contre ~40 flux réels, supporte ESM nativement. Séparation des responsabilités : ne fait que le parsing (pas le téléchargement). |
+
+### 2.7 Pourquoi Fastify et pas NestJS/Express ?
+
+| Framework | Style | Forces | Faiblesses |
+|---|---|---|---|
+| **Express** | Minimaliste (2010) | Écosystème immense, documentation abondante | Vieillissant, pas de TypeScript natif, async/await mal géré |
+| **Fastify** | Moderne, léger (2017) | Performant, TypeScript-friendly, JSON Schema, plugin system | Communauté plus petite qu'Express |
+| **NestJS** | Full framework (2017) | Architecture imposée (modules, DI, decorators), très structuré | Courbe d'apprentissage raide, abstraction épaisse |
+
+**Choix : Fastify** — Pour un projet d'apprentissage, Fastify expose les mécanismes fondamentaux de Node.js (serveur HTTP, routing, middleware) sans couche d'abstraction. On construit SOI-MÊME l'architecture models/routes/services, ce qui consolide la compréhension. NestJS masque ces mécanismes derrière des decorators et de l'injection de dépendances automatique — utile en entreprise, mais contre-productif pour apprendre.
+
+**NestJS pourra venir après** : quand on connaît les fondations (ce que fait Fastify), on comprend ce que NestJS automatise. L'inverse est plus difficile.
+
+### 2.8 Pourquoi @rowanmanning/feed-parser et pas rss-parser ?
+
+| Package | Dernière MAJ | ESM natif | Maintenu |
+|---|---|---|---|
+| `rss-parser` (3.13.0) | 3 ans | ❌ CommonJS | ❌ |
+| `@rowanmanning/feed-parser` (2.1.2) | Actif | ✅ | ✅ |
+
+**Choix** : `@rowanmanning/feed-parser` — activement maintenu, supporte ESM nativement (compatible avec notre config `"type": "module"`), testé contre des flux réels. De plus, il ne fait QUE le parsing (pas le téléchargement) — on utilise le `fetch` natif de Node.js pour la partie réseau, ce qui respecte le principe de responsabilité unique (SRP).
+
+### 2.9 Module System : ESM vs CommonJS
+
+Node.js a historiquement deux systèmes de modules :
+
+| | CommonJS (ancien) | ESM (standard) |
+|---|---|---|
+| Syntaxe | `require()` / `module.exports` | `import` / `export` |
+| Époque | 2009 (inventé par Node.js) | 2015 (standard ECMAScript) |
+| Extensions | Optionnelles | Obligatoires (`.js`) |
+| Chargement | Synchrone | Asynchrone |
+| Statut en 2026 | Legacy | Standard — ce qu'on utilise |
+
+**Configuration** : `"type": "module"` dans `package.json` + `"module": "NodeNext"` dans `tsconfig.json` active ESM. Les imports doivent spécifier l'extension `.js` (même pour des fichiers `.ts` — TypeScript résout vers le fichier compilé).
+
+```typescript
+// ESM avec TypeScript — le fichier source est .ts, mais on importe en .js
+import { rssRoutes } from "./routes/rss.routes.js";   // ✅ Correct
+import { rssRoutes } from "./routes/rss.routes.ts";   // ❌ Node.js ne comprend pas
+import { rssRoutes } from "./routes/rss.routes";      // ❌ ESM exige l'extension
+```
+
+### 2.10 Proxy Angular → Fastify (dev only)
+
+**Problème** : en dev, Angular (port 4200) et Fastify (port 3000) sont sur deux ports différents. Le navigateur bloque les requêtes cross-origin (CORS).
+
+**Solution dev** : `proxy.conf.json` dans `client/` redirige les appels `/api/*` vers `localhost:3000`. Le navigateur ne voit qu'un seul origin (`localhost:4200`), pas de CORS.
+
+```
+Navigateur → localhost:4200/api/health → [proxy ng serve] → localhost:3000/api/health (Fastify)
+```
+
+**En production** : le proxy n'existe pas (`ng serve` n'est jamais utilisé en prod). Le déploiement utilise soit Fastify qui sert les fichiers Angular statiques, soit un reverse proxy (nginx) qui route `/api/*` vers Fastify et `/*` vers les fichiers Angular. Dans les deux cas, un seul domaine = pas de CORS.
 
 ---
 
@@ -430,8 +493,17 @@ tech-review-tool/                  ← Monorepo root (npm workspaces)
 │   ├── tsconfig.json
 │   ├── tsconfig.app.json
 │   └── tsconfig.spec.json
-├── api/                           ← Backend Fastify (étape 9 — en cours)
-│   └── package.json               # Dépendances Fastify (placeholder)
+├── api/                           ← Backend Fastify (TypeScript)
+│   ├── src/
+│   │   ├── models/
+│   │   │   └── rss-article.model.ts   # DTO article RSS normalisé
+│   │   ├── routes/
+│   │   │   └── rss.routes.ts          # Routes GET /api/rss/*
+│   │   ├── services/
+│   │   │   └── rss.service.ts         # Fetch + parsing RSS/Atom
+│   │   └── server.ts                  # Point d'entrée Fastify
+│   ├── package.json               # Dépendances Fastify + feed-parser
+│   └── tsconfig.json              # Config TypeScript strict (NodeNext)
 ├── docs/
 │   └── ARCHITECTURE_ET_METHODOLOGIE.md
 ├── package.json                   # Workspace root (npm workspaces)
@@ -452,7 +524,30 @@ tech-review-tool/                  ← Monorepo root (npm workspaces)
 | Dossier | Rôle | Package manager |
 |---|---|---|
 | `client/` | Frontend Angular — tout le code UI | `package.json` propre (Angular, Tailwind, Vitest) |
-| `api/` | Backend Fastify — API REST, RSS, IA | `package.json` propre (Fastify, rss-parser, providers IA) |
+| `api/` | Backend Fastify — API REST, RSS, IA | `package.json` propre (Fastify, feed-parser, providers IA) |
+
+### 6.4 Architecture backend (api/)
+
+Le backend suit une architecture en couches séparant les responsabilités :
+
+| Couche | Dossier | Rôle | Connaît HTTP ? |
+|---|---|---|---|
+| **Models** | `src/models/` | Contrats de données (interfaces TypeScript / DTOs) | Non |
+| **Services** | `src/services/` | Logique métier (fetch, parsing, transformations) | Non |
+| **Routes** | `src/routes/` | Couche HTTP (validation requêtes, codes de statut, formatage réponses) | Oui |
+| **Server** | `src/server.ts` | Point d'entrée — crée l'instance Fastify et enregistre les routes | Oui |
+
+**Pattern plugin Fastify** : chaque fichier de routes exporte une fonction async qui reçoit l'instance Fastify et y enregistre ses routes via `app.register()`. Chaque plugin est autonome et testable indépendamment.
+
+```typescript
+// routes/rss.routes.ts — pattern plugin
+export async function rssRoutes(app: FastifyInstance): Promise<void> {
+  app.get("/api/rss/fetch", async (request, reply) => { /* ... */ });
+}
+
+// server.ts — enregistrement
+await app.register(rssRoutes);
+```
 | Racine | Orchestration des workspaces | `package.json` avec `"workspaces": ["client", "api"]` |
 
 **Règle** : `npm install` se lance toujours depuis la **racine**. Les commandes spécifiques (`ng serve`, `ng test`) se lancent depuis le **dossier du workspace** (`cd client`).
@@ -628,7 +723,7 @@ it('should debounce', () => {
 
 | Étape | Contenu | Statut |
 |---|---|---|
-| **9** | Backend Fastify : setup monorepo + endpoint RSS réel | 🔄 En cours |
+| **9** | Backend Fastify : setup monorepo + endpoint RSS réel + proxy Angular | ✅ Terminé |
 | **10** | Intégration Angular ↔ Backend RSS (remplacement des mocks articles) | ⬜ À faire |
 | **11** | Backend : endpoint IA avec Strategy Pattern (Claude + Ollama + Mock) | ⬜ À faire |
 | **12** | Intégration Angular ↔ Backend IA (remplacement des mocks génération) | ⬜ À faire |
@@ -650,11 +745,11 @@ it('should debounce', () => {
 
 ### TODO 4.8 — Récupération RSS réelle
 
-**Situation actuelle** : Les articles sont générés par des données mock (`MOCK_ARTICLE_TEMPLATES` dans `shared/data/mock-articles.ts`). Suffisant pour tester les étapes 5-6.
+**Situation actuelle** : Les articles sont générés par des données mock (`MOCK_ARTICLE_TEMPLATES` dans `shared/data/mock-articles.ts`). L'endpoint backend `GET /api/rss/fetch?url=` existe et fonctionne (Step 9).
 
-**Ce qu'il faudra** : Un endpoint backend `GET /api/rss/fetch` qui parse les vrais flux RSS côté serveur (pas de CORS côté client).
+**Ce qu'il faudra** : Connecter le frontend Angular au backend Fastify — remplacer les données mock par de vrais appels `HttpClient` vers `/api/rss/fetch`.
 
-**Quand** : Étapes 9-10 (backend + intégration).
+**Quand** : Étape 10 (intégration Angular ↔ Backend RSS).
 
 ### TODO 5.7 — Audit `theme()` dans les SCSS de composants
 
@@ -711,3 +806,15 @@ it('should debounce', () => {
 | `vi.fn()` | Crée une fonction mock dans Vitest. `.toHaveBeenCalledWith()` vérifie les arguments, `.toHaveBeenCalledTimes()` le nombre d'appels, `.mockClear()` remet les compteurs à zéro. |
 | `Factory function (test)` | Fonction utilitaire qui crée des objets de test avec des valeurs par défaut. `buildArticle({ title: 'Custom' })` crée un Article complet en ne spécifiant que ce qui change. Pattern `Partial<T>` + spread. |
 | `Zoneless` | Mode Angular 21 par défaut où Zone.js n'est plus chargé. Les utilitaires historiques (`fakeAsync`, `tick`) ne fonctionnent plus — remplacés par les fake timers natifs de Vitest. |
+| `Fastify` | Framework HTTP pour Node.js, léger et performant. Utilise un système de plugins pour organiser les routes. Chaque plugin est une fonction async qui reçoit l'instance Fastify. Alternative moderne à Express. |
+| `ESM (ECMAScript Modules)` | Système de modules standard de JavaScript (`import`/`export`). Activé par `"type": "module"` dans `package.json`. Les imports doivent inclure l'extension `.js`. Remplace CommonJS (`require`/`module.exports`). |
+| `CommonJS (CJS)` | Ancien système de modules Node.js (`require()`/`module.exports`). Encore présent dans beaucoup de packages npm mais progressivement remplacé par ESM. |
+| `CORS` | Cross-Origin Resource Sharing — protection du navigateur qui bloque les requêtes vers un domaine/port différent de celui de la page. Résolu en dev par le proxy Angular, en prod par un même domaine ou des headers CORS. |
+| `Proxy (dev)` | Mécanisme de `ng serve` qui redirige certaines URLs vers un autre serveur. `proxy.conf.json` redirige `/api/*` vers Fastify (port 3000). N'existe qu'en dev — jamais déployé en production. |
+| `DTO (Data Transfer Object)` | Interface TypeScript qui définit la forme des données échangées entre couches (service → route → client). N'a pas de logique, uniquement des propriétés typées. Placé dans le dossier `models/`. |
+| `tsx` | Outil qui exécute du TypeScript directement sans étape de compilation préalable. `tsx watch` relance automatiquement le serveur à chaque modification — équivalent de `ng serve` pour le backend. |
+| `feed-parser` | Package `@rowanmanning/feed-parser` qui parse du XML RSS/Atom en objets JavaScript structurés. Ne fait que le parsing (pas le téléchargement) — on utilise `fetch` natif pour la partie réseau (SRP). |
+| `fetch (Node.js)` | API native de Node.js (depuis v21) pour faire des requêtes HTTP. Équivalent du `fetch` du navigateur. Pas besoin d'installer de librairie externe (axios, got). |
+| `verbatimModuleSyntax` | Option TypeScript qui impose de distinguer `import type { X }` (type uniquement, disparaît à la compilation) de `import { X }` (code runtime). Rend explicite ce qui est du typage et ce qui est du code. |
+| `import type` | Import TypeScript réservé aux types. Supprimé à la compilation — ne génère aucun code JavaScript. Obligatoire avec `verbatimModuleSyntax` pour les imports qui ne sont utilisés que comme types. |
+| `@types/node` | Package npm contenant les définitions de types TypeScript pour les APIs Node.js (`process`, `console`, `Buffer`, etc.). La version majeure doit correspondre à la version majeure de Node.js installée. |

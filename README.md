@@ -19,13 +19,16 @@ TechReviewTool is a web application that helps developers and tech professionals
 - ✅ **Generation history** — Find, expand, copy and export past AI-generated content
 - ✅ **Responsive design** — Mobile-first with adaptive desktop layout (sidebar + contextual navigation)
 - ✅ **Tested** — 133 unit tests across 7 test files (services, pipes, components)
+- ✅ **Real RSS backend** — Fastify API fetching and parsing live RSS/Atom feeds
 
 ## 🛠️ Tech Stack
 
 | Technology | Version | Purpose |
 |---|---|---|
 | Angular | 21.1.4 (Active) | Frontend framework |
-| TypeScript | 5.8+ | Type-safe JavaScript |
+| Fastify | 5.x | Backend HTTP framework (TypeScript) |
+| TypeScript | 5.8+ (client) / 5.9+ (api) | Type-safe JavaScript |
+| @rowanmanning/feed-parser | 2.x | RSS and Atom feed parser |
 | SCSS | — | Styling with variables, nesting, mixins |
 | Tailwind CSS | 4.x | Utility-first CSS framework |
 | Node.js | 22.22.0 (Maintenance LTS) | JavaScript runtime |
@@ -105,11 +108,21 @@ tech-review-tool/                      ← Monorepo root (npm workspaces)
 │   ├── angular.json
 │   ├── eslint.config.js
 │   ├── package.json                            # Angular dependencies
+│   ├── proxy.conf.json                         # Dev proxy: /api/* → Fastify (localhost:3000)
 │   ├── tsconfig.json
 │   ├── tsconfig.app.json
 │   └── tsconfig.spec.json
-├── api/                                        # Backend (Step 9 — in progress)
-│   └── package.json                            # Fastify dependencies (placeholder)
+├── api/                                        ← Fastify backend (TypeScript)
+│   ├── src/
+│   │   ├── models/
+│   │   │   └── rss-article.model.ts            # RSS article DTO
+│   │   ├── routes/
+│   │   │   └── rss.routes.ts                   # GET /api/rss/fetch endpoint
+│   │   ├── services/
+│   │   │   └── rss.service.ts                  # RSS feed fetching and parsing
+│   │   └── server.ts                           # Fastify server entry point
+│   ├── package.json                            # Fastify + feed-parser dependencies
+│   └── tsconfig.json                           # Strict TypeScript config (NodeNext)
 ├── docs/
 │   └── ARCHITECTURE_ET_METHODOLOGIE.md         # Architecture decisions (FR)
 ├── .editorconfig
@@ -139,19 +152,30 @@ cd tech-review-tool
 
 # Install all workspaces (client + api)
 npm install
+```
 
-# Start the Angular dev server
+### Running in Development
+
+Start both servers in separate terminals:
+
+```bash
+# Terminal 1 — Backend (Fastify on port 3000)
+cd api
+npm run dev
+
+# Terminal 2 — Frontend (Angular on port 4200)
 cd client
 ng serve
 ```
 
-Open [http://localhost:4200](http://localhost:4200) in your browser.
+Open [http://localhost:4200](http://localhost:4200) in your browser. The Angular dev server proxies `/api/*` requests to Fastify automatically.
 
 ### Available Scripts
 
 | Command | Location | Description |
 |---|---|---|
-| `ng serve` | `client/` | Start dev server with hot reload |
+| `npm run dev` | `api/` | Start Fastify server with hot reload (tsx watch) |
+| `ng serve` | `client/` | Start Angular dev server with proxy to backend |
 | `ng build` | `client/` | Build for production |
 | `ng test` | `client/` | Run unit tests (133 tests) |
 | `ng test --watch=false` | `client/` | Run tests once (CI mode) |
@@ -159,7 +183,14 @@ Open [http://localhost:4200](http://localhost:4200) in your browser.
 | `npx prettier --check src/` | `client/` | Check code formatting |
 | `npx prettier --write src/` | `client/` | Auto-fix code formatting |
 
-> **Note**: Angular commands must be run from the `client/` directory. Dependencies are installed once at root level via npm workspaces.
+> **Note**: Commands must be run from the respective workspace directory. Dependencies are installed once at root level via npm workspaces.
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/health` | Health check — returns `{ status: "ok" }` |
+| `GET` | `/api/rss/fetch?url=<feed_url>` | Fetch and parse an RSS/Atom feed |
 
 ## 🏗️ Architecture
 
@@ -171,10 +202,24 @@ The project uses **npm workspaces** to manage frontend and backend in a single r
 package.json (root)
 ├── workspaces: ["client", "api"]
 ├── client/package.json   → Angular dependencies
-└── api/package.json      → Fastify dependencies (Step 9)
+└── api/package.json      → Fastify dependencies
 ```
 
 Dependencies are **hoisted** to a single `node_modules/` at root — shared packages are installed once. Each workspace has its own `package.json` declaring its specific dependencies.
+
+### Backend Architecture (api/)
+
+The backend follows a layered architecture separating concerns:
+
+```
+routes/    → HTTP layer (request validation, response formatting)
+services/  → Business logic (fetching, parsing, transformations)
+models/    → Data contracts (TypeScript interfaces / DTOs)
+```
+
+### Dev Proxy (Angular → Fastify)
+
+In development, Angular (port 4200) proxies `/api/*` requests to Fastify (port 3000) via `proxy.conf.json`. This avoids CORS issues without requiring CORS headers. The proxy only exists in the dev server (`ng serve`) and is not deployed to production.
 
 ### Multi-project Workspace Pattern
 
@@ -231,7 +276,7 @@ Each `computed()` auto-recalculates when its dependencies change — forming a r
 
 ### Phase 2 — Backend + Integration
 
-- [ ] **Step 9** — Fastify backend: monorepo setup + real RSS endpoint
+- [x] **Step 9** — Fastify backend: monorepo, real RSS endpoint, Angular proxy
 - [ ] **Step 10** — Angular ↔ Backend RSS integration (replace mock articles)
 - [ ] **Step 11** — Backend: AI endpoint with Strategy Pattern (Claude + Ollama + Mock)
 - [ ] **Step 12** — Angular ↔ Backend AI integration (replace mock generation)
@@ -242,7 +287,7 @@ Each `computed()` auto-recalculates when its dependencies change — forming a r
 | TODO | Description | When |
 |---|---|---|
 | **3.5** — Source catalog reuse UI | Add a "📂 From catalog" button to link existing sources without recreating. Architecture ready (`getAvailableForProject()` exists). | Standalone |
-| **4.8** — Real RSS fetching | Replace mock data with real RSS feeds via backend API. | Step 9-10 |
+| **4.8** — Real RSS fetching | Replace mock data with real RSS feeds via backend API. | Step 10 |
 | **5.7** — Audit `theme()` in component SCSS | Tailwind `theme()` doesn't work in Angular component SCSS. Audit and replace with hex values. | Standalone |
 | **6.7** — Dedicated generation page | Create a guided wizard instead of the current selection-first flow. | Standalone |
 

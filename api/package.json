@@ -2,7 +2,16 @@
   "name": "tech-review-tool-api",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "echo 'API not yet configured'"
+    "dev": "tsx watch src/server.ts"
+  },
+  "dependencies": {
+    "fastify": "^5.7.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.12",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   }
 }

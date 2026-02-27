@@ -1,8 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { of } from 'rxjs';
 import { ArticleService } from './article.service';
 import { SourceService } from '../../sources/services/source.service';
-import type { Article } from '../../../shared/models';
+import { RssApiService } from '../../../core/services/rss-api.service';
+import type { Article, FeedResult } from '../../../shared/models';
 
 describe('ArticleService', () => {
   let service: ArticleService;
@@ -33,15 +35,15 @@ describe('ArticleService', () => {
 
   // Setup & Teardown
   beforeEach(() => {
-    localStorage.clear();
+  localStorage.clear();
 
-    TestBed.configureTestingModule({
-      providers: [
-        ArticleService,
-        // Mock SourceService — ArticleService only uses it for loadMockArticles
-        { provide: SourceService, useValue: { getByProject: () => () => [] } },
-      ],
-    });
+  TestBed.configureTestingModule({
+    providers: [
+      ArticleService,
+      { provide: SourceService, useValue: { getByProject: () => () => [] } },
+      { provide: RssApiService, useValue: { fetchMultipleFeeds: vi.fn() } },
+    ],
+  });
 
     service = TestBed.inject(ArticleService);
   });
@@ -451,5 +453,147 @@ describe('ArticleService', () => {
 
     service.setCurrentProject('project-2');
     expect(service.projectArticles()).toHaveLength(1);
+  });
+
+  // FETCH FROM BACKEND
+  describe('fetchArticlesForProject', () => {
+    const FEED_URL = 'https://example.com/feed';
+
+    function setupWithSources(): { rssApiMock: { fetchMultipleFeeds: ReturnType<typeof vi.fn> } } {
+      localStorage.clear();
+
+      const rssApiMock = { fetchMultipleFeeds: vi.fn() };
+
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [
+          ArticleService,
+          {
+            provide: SourceService,
+            useValue: {
+              getByProject: () => () => [
+                { id: 'src-1', name: 'Test Source', url: FEED_URL, category: 'ai', isActive: true },
+              ],
+            },
+          },
+          { provide: RssApiService, useValue: rssApiMock },
+        ],
+      });
+
+      service = TestBed.inject(ArticleService);
+      return { rssApiMock };
+    }
+
+    it('should fetch and map articles from backend', async () => {
+      const { rssApiMock } = setupWithSources();
+
+      const feedResults: FeedResult[] = [
+        {
+          url: FEED_URL,
+          articles: [
+            {
+              title: 'Real Article',
+              link: 'https://example.com/real-article',
+              snippet: 'A real summary',
+              pubDate: '2026-02-27T10:00:00Z',
+              author: 'Author',
+              source: 'Test Feed',
+            },
+          ],
+        },
+      ];
+      rssApiMock.fetchMultipleFeeds.mockReturnValue(of(feedResults));
+
+      service.setCurrentProject(PROJECT_ID);
+      await service.fetchArticlesForProject(PROJECT_ID);
+
+      service.updateFilters({ timeWindow: 'all' });
+
+      expect(service.projectArticles()).toHaveLength(1);
+      expect(service.projectArticles()[0].title).toBe('Real Article');
+      expect(service.projectArticles()[0].url).toBe('https://example.com/real-article');
+      expect(service.projectArticles()[0].summary).toBe('A real summary');
+      expect(service.projectArticles()[0].sourceId).toBe('src-1');
+      expect(service.projectArticles()[0].sourceName).toBe('Test Source');
+    });
+
+    it('should report partial failures without losing successful results', async () => {
+      localStorage.clear();
+
+      const rssApiMock = { fetchMultipleFeeds: vi.fn() };
+
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [
+          ArticleService,
+          {
+            provide: SourceService,
+            useValue: {
+              getByProject: () => () => [
+                { id: 'src-1', name: 'Good Source', url: 'https://good.com/feed', category: 'ai', isActive: true },
+                { id: 'src-2', name: 'Bad Source', url: 'https://bad.com/feed', category: 'ai', isActive: true },
+              ],
+            },
+          },
+          { provide: RssApiService, useValue: rssApiMock },
+        ],
+      });
+
+      service = TestBed.inject(ArticleService);
+
+      const feedResults: FeedResult[] = [
+        {
+          url: 'https://good.com/feed',
+          articles: [
+            { title: 'Good Article', link: 'https://good.com/1', snippet: '', pubDate: '2026-02-27T10:00:00Z', author: undefined, source: 'Good' },
+          ],
+        },
+        {
+          url: 'https://bad.com/feed',
+          articles: [],
+          error: 'Connection refused',
+        },
+      ];
+      rssApiMock.fetchMultipleFeeds.mockReturnValue(of(feedResults));
+
+      service.setCurrentProject(PROJECT_ID);
+      await service.fetchArticlesForProject(PROJECT_ID);
+
+      service.updateFilters({ timeWindow: 'all' });
+
+      // Good source articles are present
+      expect(service.projectArticles()).toHaveLength(1);
+      expect(service.projectArticles()[0].title).toBe('Good Article');
+
+      // Error is reported
+      expect(service.fetchError()).toBe('1/2 source(s) failed to load');
+    });
+
+    it('should set isLoading during fetch', async () => {
+      const { rssApiMock } = setupWithSources();
+
+      rssApiMock.fetchMultipleFeeds.mockReturnValue(of([]));
+
+      expect(service.isLoading()).toBe(false);
+
+      const fetchPromise = service.fetchArticlesForProject(PROJECT_ID);
+      // After await, loading should be false again
+      await fetchPromise;
+
+      expect(service.isLoading()).toBe(false);
+    });
+
+    it('should clear articles when project has no active sources', async () => {
+      // First add some articles
+      service.setCurrentProject(PROJECT_ID);
+      service.addArticles([buildArticle()]);
+      service.updateFilters({ timeWindow: 'all' });
+      expect(service.projectArticles()).toHaveLength(1);
+
+      // Now fetch with default mock (no sources)
+      await service.fetchArticlesForProject(PROJECT_ID);
+
+      expect(service.projectArticles()).toHaveLength(0);
+    });
   });
 });

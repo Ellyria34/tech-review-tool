@@ -18,94 +18,118 @@
     </button>
   </header>
 
-  <!-- Guidance banner -->
-  @if (selectedCount() === 0 && totalCount() > 0) {
-    <div class="bg-teal-50 border border-teal-100 rounded-lg px-3 py-2 text-xs text-teal-700">
-      💡 Cochez des articles, puis cliquez sur <strong>Générer</strong> pour créer du contenu IA.
+  <!-- Loading state -->
+  @if (isLoading()) {
+    <div class="flex items-center justify-center py-12" role="status">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"
+          aria-label="Chargement des articles"></div>
+      <span class="ml-3 text-gray-500">Récupération des articles...</span>
     </div>
   }
 
-  <!-- Filters -->
-  <app-article-filters />
-
-  <!-- Selection bar -->
-  @if (selectedCount() > 0) {
-    <div class="flex items-center justify-between bg-teal-50 border border-teal-200 rounded-lg px-4 py-2.5 sticky top-14 z-10">
-      <span class="text-sm text-teal-700 font-medium">
-        {{ selectedCount() }} article(s) sélectionné(s)
-      </span>
-      <div class="flex items-center gap-2">
-        <button
-          class="px-3 py-1.5 rounded text-xs font-medium bg-teal-600 text-white hover:bg-teal-700 transition-colors"
-          (click)="openAiPanel()"
-          aria-label="Générer du contenu IA à partir des articles sélectionnés"
-        >
-          🤖 Générer
-        </button>
-        <button
-          class="px-3 py-1.5 rounded text-xs font-medium bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors"
-          (click)="onClearSelection()"
-          aria-label="Désélectionner tout"
-        >
-          ✕
-        </button>
-      </div>
+  <!-- Partial failure warning -->
+  @if (fetchError(); as error) {
+    <div class="mx-1 mb-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm"
+        role="alert">
+      <span class="font-medium">⚠️ Attention :</span> {{ error }}
+      <button (click)="loadArticles()"
+              class="ml-2 underline hover:no-underline"
+              aria-label="Réessayer le chargement">
+        Réessayer
+      </button>
     </div>
   }
 
-  <!-- Article list -->
-  <div class="space-y-2">
-    @if (totalCount() === 0) {
-      <!-- No articles at all -->
-      <div class="text-center py-12">
-        <div class="text-4xl mb-3">📭</div>
-        <p class="font-semibold text-gray-700 mb-1">Aucun article</p>
-        <p class="text-sm text-gray-500 mb-4">
-          Ajoutez des sources actives, puis rafraîchissez.
-        </p>
-        <a [routerLink]="['/projects', projectId, 'sources']">
-          ⚙️ Gérer les sources
-        </a>
+  @if (!isLoading()) {
+    <!-- Guidance banner -->
+    @if (selectedCount() === 0 && totalCount() > 0) {
+      <div class="bg-teal-50 border border-teal-100 rounded-lg px-3 py-2 text-xs text-teal-700">
+        💡 Cochez des articles, puis cliquez sur <strong>Générer</strong> pour créer du contenu IA.
       </div>
-    } @else if (filteredCount() === 0) {
-      <!-- Filters too restrictive -->
-      <div class="text-center py-12">
-        <div class="text-4xl mb-3">🔍</div>
-        <p class="font-semibold text-gray-700 mb-1">Aucun résultat</p>
-        <p class="text-sm text-gray-500">
-          Essayez d'élargir la période ou de modifier vos mots-clés.
-        </p>
-      </div>
-    } @else {
-      <!-- Select all -->
-      <div class="flex items-center justify-between py-1">
-        <button
-          class="text-xs text-gray-500 hover:text-teal-600 transition-colors"
-          (click)="onSelectAll()"
-          aria-label="Sélectionner tous les articles"
-        >
-          ☑ Tout sélectionner
-        </button>
-      </div>
-
-      <!-- Cards -->
-      @for (article of articles(); track article.id) {
-        <app-article-card
-          [article]="article"
-          [selected]="isSelected(article.id)"
-          (toggleSelect)="onToggleSelect($event)"
-        />
-      }
     }
-  </div>
 
-  <!-- AI Action Panel (bottom sheet) -->
-  <app-ai-action-panel
-    [articles]="selectedArticles()"
-    [projectId]="projectId"
-    [projectName]="'Mon projet'"
-    [projectIcon]="'📂'"
-    [isOpen]="isPanelOpen()"
-    (closed)="closeAiPanel()"
-  />
+    <!-- Filters -->
+    <app-article-filters />
+
+    <!-- Selection bar -->
+    @if (selectedCount() > 0) {
+      <div class="flex items-center justify-between bg-teal-50 border border-teal-200 rounded-lg px-4 py-2.5 sticky top-14 z-10">
+        <span class="text-sm text-teal-700 font-medium">
+          {{ selectedCount() }} article(s) sélectionné(s)
+        </span>
+        <div class="flex items-center gap-2">
+          <button
+            class="px-3 py-1.5 rounded text-xs font-medium bg-teal-600 text-white hover:bg-teal-700 transition-colors"
+            (click)="openAiPanel()"
+            aria-label="Générer du contenu IA à partir des articles sélectionnés"
+          >
+            🤖 Générer
+          </button>
+          <button
+            class="px-3 py-1.5 rounded text-xs font-medium bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors"
+            (click)="onClearSelection()"
+            aria-label="Désélectionner tout"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- Article list -->
+    <div class="space-y-2">
+      @if (totalCount() === 0) {
+        <!-- No articles at all -->
+        <div class="text-center py-12">
+          <div class="text-4xl mb-3">📭</div>
+          <p class="font-semibold text-gray-700 mb-1">Aucun article</p>
+          <p class="text-sm text-gray-500 mb-4">
+            Ajoutez des sources actives, puis rafraîchissez.
+          </p>
+          <a [routerLink]="['/projects', projectId, 'sources']">
+            ⚙️ Gérer les sources
+          </a>
+        </div>
+      } @else if (filteredCount() === 0) {
+        <!-- Filters too restrictive -->
+        <div class="text-center py-12">
+          <div class="text-4xl mb-3">🔍</div>
+          <p class="font-semibold text-gray-700 mb-1">Aucun résultat</p>
+          <p class="text-sm text-gray-500">
+            Essayez d'élargir la période ou de modifier vos mots-clés.
+          </p>
+        </div>
+      } @else {
+        <!-- Select all -->
+        <div class="flex items-center justify-between py-1">
+          <button
+            class="text-xs text-gray-500 hover:text-teal-600 transition-colors"
+            (click)="onSelectAll()"
+            aria-label="Sélectionner tous les articles"
+          >
+            ☑ Tout sélectionner
+          </button>
+        </div>
+
+        <!-- Cards -->
+        @for (article of articles(); track article.id) {
+          <app-article-card
+            [article]="article"
+            [selected]="isSelected(article.id)"
+            (toggleSelect)="onToggleSelect($event)"
+          />
+        }
+      }
+    </div>
+
+    <!-- AI Action Panel (bottom sheet) -->
+    <app-ai-action-panel
+      [articles]="selectedArticles()"
+      [projectId]="projectId"
+      [projectName]="'Mon projet'"
+      [projectIcon]="'📂'"
+      [isOpen]="isPanelOpen()"
+      (closed)="closeAiPanel()"
+    />
+  }
 </div>

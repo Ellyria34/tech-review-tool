@@ -31,16 +31,16 @@ export class ArticleListComponent implements OnInit{
   readonly totalCount = this.articleService.totalCount;
   readonly selectedCount = this.articleService.selectedCount;
   readonly selectedArticles = this.articleService.selectedArticles;
-
+  readonly isLoading = this.articleService.isLoading;
+  readonly fetchError = this.articleService.fetchError;
+  
   ngOnInit(): void {
     this.projectId = this.route.snapshot.paramMap.get('id') ?? '';
     this.articleService.setCurrentProject(this.projectId);
     this.aiService.setCurrentProject(this.projectId);
 
-    // Load mock articles if none exist for this project
-    if (this.articleService.totalCount() === 0) {
-      this.articleService.loadMockArticles(this.projectId);
-    }
+    // Fetch real articles from backend
+    this.loadArticles();
   }
 
   isSelected(articleId: string): boolean {
@@ -59,9 +59,11 @@ export class ArticleListComponent implements OnInit{
     this.articleService.clearSelection();
   }
 
-  onRefresh(): void {
-    this.articleService.removeByProject(this.projectId);
-    this.articleService.loadMockArticles(this.projectId);
+
+  async onRefresh(): Promise<void> {
+    this.articleService.resetFilters();
+    this.articleService.clearSelection();
+    await this.loadArticles();
   }
 
   openAiPanel(): void {
@@ -75,4 +77,9 @@ export class ArticleListComponent implements OnInit{
   onContentGenerated() : void {
     this.isPanelOpen.set(false);
   }
+
+  async loadArticles(): Promise<void> {
+    await this.articleService.fetchArticlesForProject(this.projectId);
+  }
+
 }

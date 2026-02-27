@@ -1,20 +1,26 @@
 /**
  * DTOs for the RSS backend API.
- * These interfaces mirror the backend response shapes (api/src/models/).
- * @important : If a field is added/changed in the backend, update this file too.
+ * @important If a field is added/changed in the backend, update this file too.
  */
 
-/** Raw article shape returned by GET */
+/** Mirrors api/src/models/rss-article.model.ts */
 export interface RssArticleDto {
   readonly title: string;
-  readonly url: string;
-  readonly summary: string;
-  readonly publishedAt: string; // ISO 8601 date string
-  readonly author?: string;
-  readonly imageUrl?: string;
+  readonly link: string;
+  readonly snippet: string | undefined;
+  readonly pubDate: string | undefined;
+  readonly author: string | undefined;
+  readonly source: string;
 }
 
-/** Request body for POST */
+/** Response wrapper from GET /api/rss/fetch */
+export interface FeedResponse {
+  readonly feedUrl: string;
+  readonly count: number;
+  readonly articles: RssArticleDto[];
+}
+
+/** Request body for POST /api/rss/fetch-multiple */
 export interface FetchMultipleRequest {
   readonly urls: string[];
 }

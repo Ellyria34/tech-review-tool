@@ -7,3 +7,15 @@ export interface RssArticle {
   snippet: string | undefined;
   source: string;
 }
+
+// Request body for POST /api/rss/fetch-multiple
+export interface FetchMultipleRequest {
+  urls: string[];
+}
+
+// Single feed result in the batch response (supports partial failures)
+export interface FeedResult {
+  url: string;
+  articles: RssArticle[];
+  error?: string;
+}

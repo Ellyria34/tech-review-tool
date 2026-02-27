@@ -1,7 +1,7 @@
 import { parseFeed } from "@rowanmanning/feed-parser";
-import type { RssArticle } from "../models/rss-article.model.js";
+import type { FeedResult, RssArticle } from "../models/rss-article.model.js";
 
-// Fetches and parses a single RSS feed URL, returns normalized articles
+/** Fetches and parses a single RSS feed URL, returns normalized articles */
 export async function fetchRssFeed(feedUrl: string): Promise<RssArticle[]> {
     // Step 1: Download the raw XML (native Node.js fetch — no library needed)
     const response = await fetch(feedUrl, {
@@ -15,11 +15,8 @@ export async function fetchRssFeed(feedUrl: string): Promise<RssArticle[]> {
   }
 
   const xml = await response.text();
-
-  // Step 2: Parse XML into structured data
   const feed = parseFeed(xml);
 
-  // Step 3: Normalize into our own format
   return feed.items.map((item) => ({
     title: item.title ?? "Untitled",
     link: item.url ?? "",
@@ -28,4 +25,30 @@ export async function fetchRssFeed(feedUrl: string): Promise<RssArticle[]> {
     snippet: item.description?.slice(0, 200),
     source: feed.title ?? feedUrl,
   }));
+}
+
+/** Fetch multiple RSS feeds concurrently. */
+export async function fetchMultipleRssFeeds(
+  urls: string[]
+): Promise<FeedResult[]> {
+  const results = await Promise.allSettled(
+    urls.map(async (url) => {
+      const articles = await fetchRssFeed(url);
+      return { url, articles } satisfies FeedResult;
+    })
+  );
+
+  return results.map((result, index) => {
+    if (result.status === "fulfilled") {
+      return result.value;
+    }
+    return {
+      url: urls[index]!,
+      articles: [],
+      error:
+        result.reason instanceof Error
+          ? result.reason.message
+          : "Unknown error",
+    } satisfies FeedResult;
+  });
 }

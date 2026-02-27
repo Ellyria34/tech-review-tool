@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
-import { fetchRssFeed } from "../services/rss.service.js";
+import { fetchRssFeed, fetchMultipleRssFeeds } from "../services/rss.service.js";
+import type { FetchMultipleRequest } from "../models/rss-article.model.js";
 
 // Register RSS-related routes on the Fastify instance
 export async function rssRoutes(app: FastifyInstance): Promise<void> {
@@ -7,14 +8,12 @@ export async function rssRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/rss/fetch", async (request, reply) => {
     const { url } = request.query as { url?: string };
 
-    // Validate required parameter
     if (!url) {
       return reply.status(400).send({
         error: "Missing required query parameter: url",
       });
     }
 
-    // Validate URL format
     try {
       new URL(url);
     } catch {
@@ -23,7 +22,6 @@ export async function rssRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
-    // Fetch and parse the RSS feed
     try {
       const articles = await fetchRssFeed(url);
       return reply.send({
@@ -40,4 +38,39 @@ export async function rssRoutes(app: FastifyInstance): Promise<void> {
       });
     }
   });
+
+  // POST /api/rss/fetch-multiple — batch fetch for multiple feeds
+  app.post<{ Body: FetchMultipleRequest }>(
+    "/api/rss/fetch-multiple",
+    async (request, reply) => {
+      const { urls } = request.body;
+
+      // Validate: must be a non-empty array
+      if (!Array.isArray(urls) || urls.length === 0) {
+        return reply.status(400).send({
+          error: 'Request body must contain a non-empty "urls" array',
+        });
+      }
+
+      // Security: limit batch size to prevent abuse
+      const MAX_BATCH_SIZE = 20;
+      if (urls.length > MAX_BATCH_SIZE) {
+        return reply.status(400).send({
+          error: `Batch size limited to ${MAX_BATCH_SIZE} URLs`,
+        });
+      }
+
+      // Validate each URL format
+      for (const url of urls) {
+        if (typeof url !== "string" || !url.startsWith("http")) {
+          return reply.status(400).send({
+            error: `Invalid URL: ${url}`,
+          });
+        }
+      }
+
+      const results = await fetchMultipleRssFeeds(urls);
+      return reply.send(results);
+    }
+  );
 }

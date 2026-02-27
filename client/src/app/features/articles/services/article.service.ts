@@ -1,8 +1,10 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { SourceService } from '../../sources/services/source.service';
-import { Article, ArticleFilters, TimeWindow, DEFAULT_FILTERS } from '../../../shared/models';
+import { RssApiService } from '../../../core/services/rss-api.service';
+import { Article, ArticleFilters, TimeWindow, DEFAULT_FILTERS, FeedResult } from '../../../shared/models';
 import { MOCK_ARTICLE_TEMPLATES } from '../../../shared/data/mock-articles';
 import { loadFromStorage, saveToStorage } from '../../../core/services/storage.helper';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable({
   providedIn: 'root',
@@ -11,6 +13,13 @@ export class ArticleService {
   private readonly STORAGE_KEY = 'trt-articles';
 
   private readonly sourceService = inject(SourceService);
+  private readonly rssApi = inject(RssApiService);
+  
+  // Loading and error state for backend fetching
+  private readonly _isLoading = signal(false);
+  private readonly _fetchError = signal<string | null>(null);
+  readonly isLoading = this._isLoading.asReadonly();
+  readonly fetchError = this._fetchError.asReadonly();
   
   // State signals
   private readonly _articles = signal<Article[]>(
@@ -140,8 +149,10 @@ export class ArticleService {
     this.saveToStorage();
   }
 
-  // Load mock articles for development (uses the project's active sources)
-  loadMockArticles(projectId: string): void {
+/**
+ * @deprecated Use fetchArticlesForProject() instead.
+ * Kept as fallback during development — will be removed at Step 13.
+ */  loadMockArticles(projectId: string): void {
     const linkedSources = this.sourceService.getByProject(projectId)();
     const activeSources = linkedSources.filter((s) => s.isActive);
 
@@ -150,6 +161,93 @@ export class ArticleService {
     const mockArticles = this.generateMockArticles(projectId, activeSources);
     this.addArticles(mockArticles);
   }
+
+/**
+ * Fetch real articles from backend for all active sources of a project.
+ * Replaces the former loadMockArticles() method.
+ */
+async fetchArticlesForProject(projectId: string): Promise<void> {
+  this._isLoading.set(true);
+  this._fetchError.set(null);
+
+  try {
+    // 1. Get active sources for this project
+    const linkedSources = this.sourceService.getByProject(projectId)();
+    const activeSources = linkedSources.filter(s => s.isActive);
+
+    if (activeSources.length === 0) {
+      this._articles.update(articles =>
+        articles.filter(a => a.projectId !== projectId)
+      );
+      return;
+    }
+
+    // 2. Collect feed URLs and call backend
+    const feedUrls = activeSources.map(s => s.url);
+    const feedResults = await firstValueFrom(
+      this.rssApi.fetchMultipleFeeds(feedUrls)
+    );
+
+    // 3. Map backend DTOs to frontend Article model
+    const newArticles = this.mapFeedResultsToArticles(
+      feedResults, activeSources, projectId
+    );
+
+    // 4. Replace articles for this project (keep other projects' articles)
+    this._articles.update(articles => [
+      ...articles.filter(a => a.projectId !== projectId),
+      ...newArticles,
+    ]);
+    this.saveToStorage();
+
+    // 5. Report partial failures
+    const errors = feedResults.filter(r => r.error);
+    if (errors.length > 0) {
+      this._fetchError.set(
+        `${errors.length}/${feedResults.length} source(s) failed to load`
+      );
+    }
+  } catch (error) {
+    this._fetchError.set(
+      error instanceof Error ? error.message : 'Failed to fetch articles'
+    );
+  } finally {
+    this._isLoading.set(false);
+  }
+}
+
+/**
+ * Map backend RssArticleDto[] to frontend Article[].
+ * Adds project context (projectId, sourceId, sourceName, sourceCategory).
+ */
+private mapFeedResultsToArticles(
+  feedResults: FeedResult[],
+  activeSources: { id: string; name: string; url: string; category: string }[],
+  projectId: string
+): Article[] {
+  const articles: Article[] = [];
+
+  for (const result of feedResults) {
+    const source = activeSources.find(s => s.url === result.url);
+    if (!source || result.error) continue;
+
+    for (const dto of result.articles) {
+      articles.push({
+        id: crypto.randomUUID(),
+        projectId,
+        sourceId: source.id,
+        title: dto.title,
+        url: dto.link,
+        summary: dto.snippet ?? '',
+        publishedAt: dto.pubDate ?? new Date().toISOString(),
+        sourceName: source.name,
+        sourceCategory: source.category as Article['sourceCategory'],
+      });
+    }
+  }
+  return articles;
+}
+
 
   // HELPERS
   private getTimeCutoff(window: TimeWindow): Date {

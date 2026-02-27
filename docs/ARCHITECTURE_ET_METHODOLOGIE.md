@@ -3,7 +3,7 @@
 > **Nom du projet** : TechReviewTool — Agrégateur intelligent de veille technologique
 > **Date de création** : 14 février 2026
 > **Auteur** : Ellyria34 - Sarah LLEON
-> **Statut** : Phase 1 (frontend) terminée ✅ — Phase 2 (backend) en cours — Step 9 terminé (Fastify + RSS + proxy)
+> **Statut** : Phase 1 (frontend) terminée ✅ — Phase 2 (backend) en cours — Step 10 terminé (Angular ↔ Backend RSS)
 
 ---
 
@@ -402,6 +402,34 @@ async generate(type: ContentType, articles: Article[], projectId: string): Promi
 
 Le service expose un signal `isGenerating` consommé par le composant pour afficher un spinner et bloquer les interactions pendant la génération.
 
+### 4.6 Intégration backend — flux HTTP vers signaux
+
+Le flux complet de récupération des articles réels :
+
+```
+ArticleListComponent.loadArticles()
+  → ArticleService.fetchArticlesForProject(projectId)
+    → SourceService.getByProject(projectId)     // Récupère les sources actives
+    → RssApiService.fetchMultipleFeeds(urls)     // POST /api/rss/fetch-multiple
+      → HttpClient.post()                        // Observable HTTP
+      → firstValueFrom()                         // Conversion Observable → Promise
+    → mapFeedResultsToArticles()                 // DTO backend → modèle frontend
+    → _articles.update()                         // Signal mis à jour
+    → computed chain recalcule automatiquement   // projectArticles → filteredArticles → template
+```
+
+**Séparation des responsabilités** :
+
+| Couche | Service | Rôle |
+|---|---|---|
+| HTTP | `RssApiService` | Communication réseau uniquement — pas d'état, pas de logique |
+| État | `ArticleService` | Stockage (signaux), filtres (computed), mapping DTO → modèle |
+| Présentation | `ArticleListComponent` | Affichage, états de chargement/erreur, interactions utilisateur |
+
+**Pattern `firstValueFrom()`** : `HttpClient` retourne un `Observable` qui émet une seule valeur. `firstValueFrom()` le convertit en `Promise` pour utiliser `async/await` avec `try/finally` (pattern déjà établi pour `AiService`).
+
+**Tolérance aux pannes partielles** : le backend utilise `Promise.allSettled()` — si 1 flux sur 10 échoue, les 9 autres retournent leurs articles normalement. Le frontend affiche une bannière d'avertissement pour les flux en erreur.
+
 ---
 
 ## 5. Principes SOLID appliqués à Angular/TypeScript
@@ -433,6 +461,7 @@ export class ProjectService {
 **Exemples concrets dans le projet** :
 - Les données mock (`MOCK_ARTICLE_TEMPLATES`) sont séparées dans `shared/data/mock-articles.ts`, pas dans le service
 - `ArticleService` gère les articles et les filtres, `AiService` gère la génération IA — deux domaines distincts
+- `RssApiService` gère uniquement la communication HTTP avec le backend — `ArticleService` gère l'état, les filtres et le mapping DTO → modèle
 - Les opérations localStorage sont factorisées dans `storage.helper.ts`, pas dupliquées dans chaque service
 
 ### O — Open/Closed (Ouvert/Fermé)
@@ -445,7 +474,7 @@ Un service implémentant une interface peut remplacer un autre. Exemple : un `Mo
 
 ### I — Interface Segregation (Ségrégation des interfaces)
 
-Plein de petits services spécialisés plutôt qu'un "God Service" qui fait tout : `ProjectService`, `SourceService`, `ArticleService`, `AiService` — chacun a un domaine clair.
+Plein de petits services spécialisés plutôt qu'un "God Service" qui fait tout : `ProjectService`, `SourceService`, `ArticleService`, `RssApiService`, `AiService` — chacun a un domaine clair.
 
 ### D — Dependency Inversion
 
@@ -472,6 +501,7 @@ tech-review-tool/                  ← Monorepo root (npm workspaces)
 │   │   │   │   │   ├── header/        # Header de l'app (mobile uniquement)
 │   │   │   │   │   └── sidebar/       # Sidebar desktop (liste projets + nav)
 │   │   │   │   └── services/
+│   │   │   │       ├── rss-api.service.ts   # Client HTTP pour l'API RSS backend
 │   │   │   │       └── storage.helper.ts
 │   │   │   ├── features/          # Domaines fonctionnels
 │   │   │   │   ├── projects/      # CRUD projets
@@ -482,6 +512,12 @@ tech-review-tool/                  ← Monorepo root (npm workspaces)
 │   │   │   └── shared/            # Composants réutilisables, pipes, directives, modèles
 │   │   │       ├── data/          # Données centralisées (catégories, mock articles)
 │   │   │       ├── models/        # Interfaces TypeScript
+│   │   │       │   ├── article.model.ts
+│   │   │       │   ├── generated-content.model.ts
+│   │   │       │   ├── project.model.ts
+│   │   │       │   ├── rss-api.model.ts       # DTOs backend (RssArticleDto, FeedResult)
+│   │   │       │   ├── source.model.ts
+│   │   │       │   └── index.ts               # Barrel exports
 │   │   │       └── pipes/         # RelativeTimePipe
 │   │   ├── index.html
 │   │   ├── main.ts
@@ -496,11 +532,11 @@ tech-review-tool/                  ← Monorepo root (npm workspaces)
 ├── api/                           ← Backend Fastify (TypeScript)
 │   ├── src/
 │   │   ├── models/
-│   │   │   └── rss-article.model.ts   # DTO article RSS normalisé
+│   │   │   └── rss-article.model.ts   # DTO article RSS + types batch
 │   │   ├── routes/
-│   │   │   └── rss.routes.ts          # Routes GET /api/rss/*
+│   │   │   └── rss.routes.ts          # Routes GET + POST /api/rss/*
 │   │   ├── services/
-│   │   │   └── rss.service.ts         # Fetch + parsing RSS/Atom
+│   │   │   └── rss.service.ts         # Fetch + parsing RSS/Atom (single + batch)
 │   │   └── server.ts                  # Point d'entrée Fastify
 │   ├── package.json               # Dépendances Fastify + feed-parser
 │   └── tsconfig.json              # Config TypeScript strict (NodeNext)
@@ -543,11 +579,23 @@ Le backend suit une architecture en couches séparant les responsabilités :
 // routes/rss.routes.ts — pattern plugin
 export async function rssRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/rss/fetch", async (request, reply) => { /* ... */ });
+  app.post("/api/rss/fetch-multiple", async (request, reply) => { /* ... */ });
 }
 
 // server.ts — enregistrement
 await app.register(rssRoutes);
 ```
+
+**Endpoints disponibles** :
+
+| Méthode | Route | Description |
+|---|---|---|
+| `GET` | `/api/health` | Health check — retourne `{ status: "ok" }` |
+| `GET` | `/api/rss/fetch?url=` | Fetch et parse un seul flux RSS/Atom |
+| `POST` | `/api/rss/fetch-multiple` | Batch fetch — body `{ urls: string[] }`, max 20 URLs |
+
+L'endpoint batch utilise `Promise.allSettled()` pour la tolérance aux pannes partielles. Chaque `FeedResult` contient les articles récupérés ou un message d'erreur.
+
 | Racine | Orchestration des workspaces | `package.json` avec `"workspaces": ["client", "api"]` |
 
 **Règle** : `npm install` se lance toujours depuis la **racine**. Les commandes spécifiques (`ng serve`, `ng test`) se lancent depuis le **dossier du workspace** (`cd client`).
@@ -613,6 +661,7 @@ Pour un projet solo avec montée en compétence :
 | CSP (Content Security Policy) | Headers de sécurité pour empêcher les injections XSS |
 | Liens externes sécurisés | `target="_blank"` toujours avec `rel="noopener noreferrer"` |
 | Clés localStorage non sensibles | Les clés de stockage ne contiennent pas de données personnelles |
+| Limite batch | L'endpoint `POST /api/rss/fetch-multiple` refuse plus de 20 URLs par requête (protection contre les abus) |
 
 ---
 
@@ -624,11 +673,12 @@ Pour un projet solo avec montée en compétence :
 |---|---|
 | Contraste | Ratio minimum 4.5:1 pour le texte |
 | Navigation clavier | Tous les éléments interactifs accessibles au clavier (Tab, Enter, Escape) |
-| Lecteurs d'écran | Attributs ARIA sur les composants dynamiques (`role="dialog"`, `role="radio"`, `aria-modal`, `aria-checked`, `aria-busy`, `aria-label`) |
+| Lecteurs d'écran | Attributs ARIA sur les composants dynamiques (`role="dialog"`, `role="radio"`, `role="modal"`, `aria-checked`, `aria-busy`, `aria-label`) |
 | Focus visible | Indicateur de focus toujours visible (`focus-visible` avec outline teal) |
 | Sémantique HTML | Utiliser les bonnes balises (`<nav>`, `<main>`, `<article>`, `<button>`) |
 | Labels | Tous les champs de formulaire ont un label associé |
 | Feedback accessible | `role="status"` pour les messages de confirmation (ex: "Copié !"), `role="alert"` pour les erreurs |
+| États de chargement | `role="status"` avec `aria-label` sur le spinner de chargement des articles |
 | Événements clavier | `(click)` toujours accompagné de `(keydown)` ou `(keyup)` (ESLint enforce cette règle) |
 
 ---
@@ -658,7 +708,7 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 | **Formulaires** (FormBuilder, Validators, Router) | ❌ Non | "Plomberie" Angular — déjà testée par le framework |
 | **Composants orchestrateurs** (workspace) | ❌ Non | Connectent des services déjà testés à 100% |
 
-### Fichiers de test — Étape 8
+### Fichiers de test — Étapes 8 + 10
 
 | Fichier | Tests | Ce qui est couvert |
 |---|---|---|
@@ -666,10 +716,10 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 | `relative-time.pipe.spec.ts` | 16 | 5 branches temporelles, fuseaux horaires |
 | `project.service.spec.ts` | 19 | CRUD complet, validation, cascade delete, timestamps |
 | `source.service.spec.ts` | 33 | Catalogue CRUD, liaisons Many-to-Many, computed queries |
-| `article.service.spec.ts` | 34 | Chaîne computed, filtres combinés, sélection, déduplication |
+| `article.service.spec.ts` | 38 | Chaîne computed, filtres combinés, sélection, déduplication, fetch backend, erreurs partielles |
 | `ai.service.spec.ts` | 20 | Génération async, transitions d'état, persistence, cascade |
 | `article-filters.spec.ts` | 8 | Debounce RxJS 300ms, distinctUntilChanged, cleanup destroy$ |
-| **Total** | **133** | **4/4 services, 1/1 pipe, 2 composants (les seuls avec logique)** |
+| **Total** | **137** | **4/4 services, 1/1 pipe, 2 composants (les seuls avec logique)** |
 
 ### Techniques de test utilisées
 
@@ -681,6 +731,8 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 | `vi.advanceTimersByTimeAsync(ms)` | Idem mais pour les Promises (AiService `simulateDelay`) |
 | Factory functions (`buildArticle()`) | `Partial<T>` + spread — créer des objets de test lisibles |
 | `localStorage.clear()` dans `beforeEach` + `afterEach` | Double nettoyage pour l'isolation entre tests |
+| Mock `RssApiService` avec `vi.fn()` | Isolation des tests — pas de vraie requête HTTP, réponse contrôlée |
+| `of()` de RxJS pour les mocks Observable | Retourne un Observable synchrone — simule `HttpClient.post()` sans réseau |
 
 ### Angular 21 et les tests — mode zoneless
 
@@ -724,7 +776,7 @@ it('should debounce', () => {
 | Étape | Contenu | Statut |
 |---|---|---|
 | **9** | Backend Fastify : setup monorepo + endpoint RSS réel + proxy Angular | ✅ Terminé |
-| **10** | Intégration Angular ↔ Backend RSS (remplacement des mocks articles) | ⬜ À faire |
+| **10** | Intégration Angular ↔ Backend RSS (remplacement des mocks articles) | ✅ Terminé |
 | **11** | Backend : endpoint IA avec Strategy Pattern (Claude + Ollama + Mock) | ⬜ À faire |
 | **12** | Intégration Angular ↔ Backend IA (remplacement des mocks génération) | ⬜ À faire |
 | **13** | Tests E2E (Playwright), sécurité, RGPD, build production | ⬜ À faire |
@@ -743,14 +795,6 @@ it('should debounce', () => {
 
 **Quand** : Sous-étape autonome.
 
-### TODO 4.8 — Récupération RSS réelle
-
-**Situation actuelle** : Les articles sont générés par des données mock (`MOCK_ARTICLE_TEMPLATES` dans `shared/data/mock-articles.ts`). L'endpoint backend `GET /api/rss/fetch?url=` existe et fonctionne (Step 9).
-
-**Ce qu'il faudra** : Connecter le frontend Angular au backend Fastify — remplacer les données mock par de vrais appels `HttpClient` vers `/api/rss/fetch`.
-
-**Quand** : Étape 10 (intégration Angular ↔ Backend RSS).
-
 ### TODO 5.7 — Audit `theme()` dans les SCSS de composants
 
 **Situation** : Découvert à l'étape 5 que la fonction Tailwind `theme()` ne fonctionne pas dans les fichiers SCSS de composants Angular (compilation isolée). Corrigé dans `ai-action-panel.scss` et `generated-content.scss` en utilisant les valeurs hex.
@@ -764,6 +808,14 @@ it('should debounce', () => {
 **Problème** : Le flux actuel "sélectionner des articles → cliquer Générer" n'est pas intuitif. L'utilisateur doit deviner qu'il faut d'abord sélectionner des articles dans la page articles. Un bandeau guidage a été ajouté comme amélioration rapide.
 
 **Ce qu'il faudrait** : Une page dédiée `/projects/:id/generate` avec un wizard pas-à-pas : voir les articles → sélectionner → choisir le format → générer. L'onglet "Générer" dans la BottomNav pointerait vers cette page.
+
+**Quand** : Sous-étape autonome.
+
+### TODO 10.1 — Détection automatique des flux RSS
+
+**Problème** : L'utilisateur doit connaître l'URL exacte du flux RSS d'un site (ex: `cert.ssi.gouv.fr/feed/` au lieu de `cert.ssi.gouv.fr/`). Beaucoup de sites modernes (SPA React/Next.js comme Anthropic) n'ont pas de flux RSS du tout.
+
+**Solution envisagée** : Le backend reçoit une URL de site web → télécharge la page HTML → cherche `<link rel="alternate" type="application/rss+xml">` dans le `<head>` → retourne l'URL du flux RSS. Si aucun flux trouvé, retourne une erreur explicite avec les conventions courantes à essayer (`/feed`, `/rss`, `/atom.xml`).
 
 **Quand** : Sous-étape autonome.
 
@@ -811,7 +863,10 @@ it('should debounce', () => {
 | `CommonJS (CJS)` | Ancien système de modules Node.js (`require()`/`module.exports`). Encore présent dans beaucoup de packages npm mais progressivement remplacé par ESM. |
 | `CORS` | Cross-Origin Resource Sharing — protection du navigateur qui bloque les requêtes vers un domaine/port différent de celui de la page. Résolu en dev par le proxy Angular, en prod par un même domaine ou des headers CORS. |
 | `Proxy (dev)` | Mécanisme de `ng serve` qui redirige certaines URLs vers un autre serveur. `proxy.conf.json` redirige `/api/*` vers Fastify (port 3000). N'existe qu'en dev — jamais déployé en production. |
-| `DTO (Data Transfer Object)` | Interface TypeScript qui définit la forme des données échangées entre couches (service → route → client). N'a pas de logique, uniquement des propriétés typées. Placé dans le dossier `models/`. |
+| `DTO (Data Transfer Object)` | Interface TypeScript qui définit la forme des données échangées entre couches (service → route → client). N'a pas de logique, uniquement des propriétés typées. Le DTO est un contrat fidèle à la réponse API ; le modèle métier frontend est adapté aux besoins de l'UI. |
+| `HttpClient` | Service Angular pour les requêtes HTTP. Retourne des Observables. Activé via `provideHttpClient()` dans `app.config.ts`. |
+| `firstValueFrom()` | Fonction RxJS qui prend la première valeur d'un Observable et la retourne comme Promise. Utile pour convertir un appel `HttpClient` en `async/await`. L'Observable doit émettre au moins une valeur (sinon erreur). |
+| `Promise.allSettled()` | Attend que toutes les promesses se terminent (succès ou échec). Contrairement à `Promise.all()`, ne rejette pas au premier échec — retourne le résultat individuel de chaque promesse. Utilisé pour la tolérance aux pannes partielles (batch RSS). |
 | `tsx` | Outil qui exécute du TypeScript directement sans étape de compilation préalable. `tsx watch` relance automatiquement le serveur à chaque modification — équivalent de `ng serve` pour le backend. |
 | `feed-parser` | Package `@rowanmanning/feed-parser` qui parse du XML RSS/Atom en objets JavaScript structurés. Ne fait que le parsing (pas le téléchargement) — on utilise `fetch` natif pour la partie réseau (SRP). |
 | `fetch (Node.js)` | API native de Node.js (depuis v21) pour faire des requêtes HTTP. Équivalent du `fetch` du navigateur. Pas besoin d'installer de librairie externe (axios, got). |

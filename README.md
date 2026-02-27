@@ -18,7 +18,7 @@ TechReviewTool is a web application that helps developers and tech professionals
   - Optimized LinkedIn post
 - ✅ **Generation history** — Find, expand, copy and export past AI-generated content
 - ✅ **Responsive design** — Mobile-first with adaptive desktop layout (sidebar + contextual navigation)
-- ✅ **Tested** — 133 unit tests across 7 test files (services, pipes, components)
+- ✅ **Tested** — 137 unit tests across 7 test files (services, pipes, components)
 - ✅ **Real RSS backend** — Fastify API fetching and parsing live RSS/Atom feeds
 
 ## 🛠️ Tech Stack
@@ -48,6 +48,7 @@ tech-review-tool/                      ← Monorepo root (npm workspaces)
 │   │   │   │   │   ├── header/                 # App header (mobile only, hidden on desktop)
 │   │   │   │   │   └── sidebar/                # Desktop sidebar (project list + contextual nav)
 │   │   │   │   └── services/
+│   │   │   │       ├── rss-api.service.ts      # Thin HTTP client for backend RSS API
 │   │   │   │       └── storage.helper.ts       # Generic localStorage helpers
 │   │   │   ├── features/
 │   │   │   │   ├── ai-actions/                 # AI content generation
@@ -62,7 +63,7 @@ tech-review-tool/                      ← Monorepo root (npm workspaces)
 │   │   │   │   │   │   ├── article-filters/    # Search bar, time window, source dropdown, reset
 │   │   │   │   │   │   └── article-list/       # Container: filters + cards + selection bar
 │   │   │   │   │   └── services/
-│   │   │   │   │       └── article.service.ts  # Filters (computed chain), selection (Set), mock
+│   │   │   │   │       └── article.service.ts  # Filters (computed chain), selection (Set), backend fetch
 │   │   │   │   ├── history/                    # Generation history per project
 │   │   │   │   │   └── components/
 │   │   │   │   │       └── history-list/       # Full history page with delete per entry
@@ -89,6 +90,7 @@ tech-review-tool/                      ← Monorepo root (npm workspaces)
 │   │   │   │   │   ├── article.model.ts        # Article, ArticleFilters, TimeWindow
 │   │   │   │   │   ├── generated-content.model.ts
 │   │   │   │   │   ├── project.model.ts        # ReviewProject
+│   │   │   │   │   ├── rss-api.model.ts        # Backend RSS DTOs (RssArticleDto, FeedResult)
 │   │   │   │   │   ├── source.model.ts         # Source, ProjectSource, LinkedSource
 │   │   │   │   │   └── index.ts                # Barrel exports
 │   │   │   │   └── pipes/
@@ -115,9 +117,9 @@ tech-review-tool/                      ← Monorepo root (npm workspaces)
 ├── api/                                        ← Fastify backend (TypeScript)
 │   ├── src/
 │   │   ├── models/
-│   │   │   └── rss-article.model.ts            # RSS article DTO
+│   │   │   └── rss-article.model.ts            # RSS article DTO + batch types
 │   │   ├── routes/
-│   │   │   └── rss.routes.ts                   # GET /api/rss/fetch endpoint
+│   │   │   └── rss.routes.ts                   # GET + POST /api/rss/* endpoints
 │   │   ├── services/
 │   │   │   └── rss.service.ts                  # RSS feed fetching and parsing
 │   │   └── server.ts                           # Fastify server entry point
@@ -177,7 +179,7 @@ Open [http://localhost:4200](http://localhost:4200) in your browser. The Angular
 | `npm run dev` | `api/` | Start Fastify server with hot reload (tsx watch) |
 | `ng serve` | `client/` | Start Angular dev server with proxy to backend |
 | `ng build` | `client/` | Build for production |
-| `ng test` | `client/` | Run unit tests (133 tests) |
+| `ng test` | `client/` | Run unit tests (137 tests) |
 | `ng test --watch=false` | `client/` | Run tests once (CI mode) |
 | `ng lint` | `client/` | Run ESLint code quality checks |
 | `npx prettier --check src/` | `client/` | Check code formatting |
@@ -191,6 +193,7 @@ Open [http://localhost:4200](http://localhost:4200) in your browser. The Angular
 |---|---|---|
 | `GET` | `/api/health` | Health check — returns `{ status: "ok" }` |
 | `GET` | `/api/rss/fetch?url=<feed_url>` | Fetch and parse an RSS/Atom feed |
+| `POST` | `/api/rss/fetch-multiple` | Batch fetch multiple RSS feeds (body: { urls: string[] }, max 20) |
 
 ## 🏗️ Architecture
 
@@ -237,10 +240,10 @@ The header and bottom nav are hidden on desktop; the sidebar takes over branding
 ### Reactive Data Flow
 
 ```
-Signal _articles          →  computed projectArticles     →  computed filteredArticles
-(all articles in storage)    (filtered by currentProject)    (+ keywords, timeWindow, source)
-                                                                    ↓
-                                                             displayed in template
+RssApiService (HTTP)  →  ArticleService (state)  →  computed projectArticles  →  computed filteredArticles
+(POST /api/rss/...)      Signal _articles            (filtered by project)       (+ keywords, timeWindow)
+                                                                                        ↓
+                                                                                  displayed in template
 ```
 
 Each `computed()` auto-recalculates when its dependencies change — forming a reactive pipeline that updates the UI automatically.
@@ -272,12 +275,12 @@ Each `computed()` auto-recalculates when its dependencies change — forming a r
 - [x] **Step 5** — AI-powered content generation (synthesis, press review, LinkedIn)
 - [x] **Step 6** — Generation history per project
 - [x] **Step 7** — Responsive desktop layout (sidebar + contextual navigation)
-- [x] **Step 8** — Unit tests (Vitest — 133 tests, 7 test files)
+- [x] **Step 8** — Unit tests (Vitest — 137 tests, 7 test files)
 
 ### Phase 2 — Backend + Integration
 
 - [x] **Step 9** — Fastify backend: monorepo, real RSS endpoint, Angular proxy
-- [ ] **Step 10** — Angular ↔ Backend RSS integration (replace mock articles)
+- [x] **Step 10** — Angular ↔ Backend RSS integration (replace mock articles)
 - [ ] **Step 11** — Backend: AI endpoint with Strategy Pattern (Claude + Ollama + Mock)
 - [ ] **Step 12** — Angular ↔ Backend AI integration (replace mock generation)
 - [ ] **Step 13** — E2E tests (Playwright), security, GDPR, production build
@@ -287,9 +290,9 @@ Each `computed()` auto-recalculates when its dependencies change — forming a r
 | TODO | Description | When |
 |---|---|---|
 | **3.5** — Source catalog reuse UI | Add a "📂 From catalog" button to link existing sources without recreating. Architecture ready (`getAvailableForProject()` exists). | Standalone |
-| **4.8** — Real RSS fetching | Replace mock data with real RSS feeds via backend API. | Step 10 |
 | **5.7** — Audit `theme()` in component SCSS | Tailwind `theme()` doesn't work in Angular component SCSS. Audit and replace with hex values. | Standalone |
 | **6.7** — Dedicated generation page | Create a guided wizard instead of the current selection-first flow. | Standalone |
+| **10.1** — Auto-detect RSS feed URL | User enters a website URL → backend fetches the HTML page → extracts <link rel="alternate" type="application/rss+xml"> from <head> → returns the feed URL. Fallback error if no feed found. | Standalone |
 
 ## 📄 License
 

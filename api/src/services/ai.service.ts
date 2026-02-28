@@ -1,8 +1,9 @@
 import type { AiProvider, ContentType, AiArticleInput, AiGenerateResponse } from '../models/ai.model.js';
 import { MockAiProvider } from '../providers/mock-ai.provider.js';
+import { MistralAiProvider } from '../providers/mistral-ai.provider.js';
 
 /** Supported provider identifiers */
-type ProviderName = 'mock' | 'claude';
+type ProviderName = 'mock' | 'mistral';
 
 /**
  * Factory function — instantiates the correct AI provider
@@ -14,9 +15,8 @@ function createProvider(): AiProvider {
   const providerName = (process.env['AI_PROVIDER'] ?? 'mock') as ProviderName;
 
   switch (providerName) {
-    case 'claude':
-      // Will be implemented in step 11.5
-      throw new Error('Claude provider not yet implemented. Use AI_PROVIDER=mock');
+    case 'mistral': 
+      return new MistralAiProvider();
     case 'mock':
     default:
       return new MockAiProvider();

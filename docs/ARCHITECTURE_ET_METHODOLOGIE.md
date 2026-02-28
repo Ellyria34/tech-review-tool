@@ -3,7 +3,7 @@
 > **Nom du projet** : TechReviewTool — Agrégateur intelligent de veille technologique
 > **Date de création** : 14 février 2026
 > **Auteur** : Ellyria34 - Sarah LLEON
-> **Statut** : Phase 1 (frontend) terminée ✅ — Phase 2 (backend) en cours — Step 10 terminé (Angular ↔ Backend RSS)
+> **Statut** : Phase 1 (frontend) terminée ✅ — Phase 2 (backend) en cours — Step 11 terminé (Backend IA Strategy Pattern)
 
 ---
 
@@ -142,6 +142,7 @@ Node.js 22 est en Maintenance LTS (support jusqu'en avril 2027). Node.js 24 est 
 | **TypeScript** | **5.9** (dernière stable) | Même langage que le frontend Angular. Configuration stricte (`strict: true`, `noUncheckedIndexedAccess`, `verbatimModuleSyntax`) pour un typage maximal. |
 | **tsx** | **4.x** | Exécuteur TypeScript qui compile et recharge à la volée. `tsx watch` relance le serveur à chaque modification — équivalent de `ng serve` pour le backend. |
 | **@rowanmanning/feed-parser** | **2.x** | Parser RSS et Atom activement maintenu, testé contre ~40 flux réels, supporte ESM nativement. Séparation des responsabilités : ne fait que le parsing (pas le téléchargement). |
+| **Mistral AI API** | `mistral-small-latest` | Provider IA principal. API REST chat completions. Appelé avec `fetch` natif (pas de SDK). Temperature 0.4 pour un équilibre factualité/créativité. |
 
 ### 2.7 Pourquoi Fastify et pas NestJS/Express ?
 
@@ -196,6 +197,27 @@ Navigateur → localhost:4200/api/health → [proxy ng serve] → localhost:3000
 ```
 
 **En production** : le proxy n'existe pas (`ng serve` n'est jamais utilisé en prod). Le déploiement utilise soit Fastify qui sert les fichiers Angular statiques, soit un reverse proxy (nginx) qui route `/api/*` vers Fastify et `/*` vers les fichiers Angular. Dans les deux cas, un seul domaine = pas de CORS.
+
+### 2.11 Pourquoi Mistral comme premier provider IA ?
+
+| Provider | Forces | Faiblesses |
+|---|---|---|
+| **OpenAI (GPT)** | Très populaire, documentation abondante | Payant dès le premier token, pas européen |
+| **Anthropic (Claude)** | Excellent en rédaction, 5$ crédit gratuit | SDK recommandé, setup plus complexe |
+| **Mistral** | Français, API simple, quota gratuit, bons résultats en français | Communauté plus petite |
+
+**Choix : Mistral** — Clé API disponible immédiatement, résultats de qualité en français (logique pour du contenu francophone), API REST standard sans SDK. Le Strategy Pattern permet d'ajouter Claude ou GPT plus tard sans toucher au code existant.
+
+### 2.12 Pourquoi `fetch` natif plutôt que le SDK Mistral ?
+
+Le SDK `@mistralai/mistralai` est disponible sur npm. On utilise `fetch` natif pour les mêmes raisons que pour le RSS :
+
+- **Zéro dépendance** — moins de surface d'attaque, moins de maintenance
+- **Compréhension** — on voit exactement ce qui est envoyé (headers, body, endpoint)
+- **Portabilité** — le même code fonctionne pour n'importe quelle API REST (Claude, GPT, Ollama)
+- **SRP** — le provider ne dépend que de `fetch`, pas d'une abstraction tierce
+
+Un SDK devient utile quand l'API est complexe (streaming, retry automatique, pagination). Pour un simple POST → réponse JSON, `fetch` suffit.
 
 ---
 
@@ -463,18 +485,24 @@ export class ProjectService {
 - `ArticleService` gère les articles et les filtres, `AiService` gère la génération IA — deux domaines distincts
 - `RssApiService` gère uniquement la communication HTTP avec le backend — `ArticleService` gère l'état, les filtres et le mapping DTO → modèle
 - Les opérations localStorage sont factorisées dans `storage.helper.ts`, pas dupliquées dans chaque service
+- Chaque AI provider (Mock, Mistral) a sa propre classe — l'orchestration est dans `AiService`, pas dans les providers
 
 ### O — Open/Closed (Ouvert/Fermé)
 
-On étend le comportement via l'injection de dépendances et les tokens d'injection, sans modifier le code existant. Exemple concret : le `AiService` utilise un mock de génération. Pour passer à une vraie API, on remplace **une seule méthode privée** (`generateMockContent`) sans toucher aux composants consommateurs.
+On étend le comportement sans modifier le code existant. Exemple concret : le **Strategy Pattern IA**. Pour ajouter un provider (Claude, Ollama, GPT), on crée un fichier qui `implements AiProvider` et on ajoute un `case` dans la factory. Ni la route, ni le service, ni le frontend ne changent.
+
+```typescript
+// Ajouter un provider = 1 fichier + 1 ligne
+case 'claude': return new ClaudeAiProvider();  // ← seul changement
+```
 
 ### L — Liskov Substitution
 
-Un service implémentant une interface peut remplacer un autre. Exemple : un `MockProjectService` peut remplacer `ProjectService` dans les tests sans casser l'application. Le mock de génération IA et la future API réelle ont la même signature — les composants ne font pas la différence.
+Un service implémentant une interface peut remplacer un autre. Exemple : `MockAiProvider` et `MistralAiProvider` implémentent tous les deux `AiProvider`. Le code appelant ne fait pas la différence — il appelle `provider.generate()` sans savoir quelle implémentation est active.
 
 ### I — Interface Segregation (Ségrégation des interfaces)
 
-Plein de petits services spécialisés plutôt qu'un "God Service" qui fait tout : `ProjectService`, `SourceService`, `ArticleService`, `RssApiService`, `AiService` — chacun a un domaine clair.
+Plein de petits services spécialisés plutôt qu'un "God Service" qui fait tout : `ProjectService`, `SourceService`, `ArticleService`, `RssApiService`, `AiService` — chacun a un domaine clair. L'interface `AiProvider` ne contient que ce dont les providers ont besoin (`name` + `generate()`), pas de méthodes superflues.
 
 ### D — Dependency Inversion
 
@@ -483,6 +511,8 @@ Les composants dépendent d'abstractions (interfaces/tokens), pas d'implémentat
 ```typescript
 { provide: ProjectService, useClass: MockProjectService }
 ```
+
+Côté backend, `AiService` dépend de l'interface `AiProvider`, pas de `MistralAiProvider` directement. La factory injecte l'implémentation concrète à runtime.
 
 ---
 
@@ -532,12 +562,19 @@ tech-review-tool/                  ← Monorepo root (npm workspaces)
 ├── api/                           ← Backend Fastify (TypeScript)
 │   ├── src/
 │   │   ├── models/
+│   │   │   ├── ai.model.ts           # Interface AiProvider + types partagés (Strategy Pattern)
 │   │   │   └── rss-article.model.ts   # DTO article RSS + types batch
+│   │   ├── providers/
+│   │   │   ├── mistral-ai.provider.ts # Provider Mistral (API chat completions)
+│   │   │   └── mock-ai.provider.ts    # Provider mock (dev, pas de clé API)
 │   │   ├── routes/
-│   │   │   └── rss.routes.ts          # Routes GET + POST /api/rss/*
+│   │   │   ├── ai.routes.ts           # POST /api/ai/generate
+│   │   │   └── rss.routes.ts         # GET + POST /api/rss/*
 │   │   ├── services/
+│   │   │   ├── ai.service.ts          # Orchestration IA + factory provider
 │   │   │   └── rss.service.ts         # Fetch + parsing RSS/Atom (single + batch)
 │   │   └── server.ts                  # Point d'entrée Fastify
+│   ├── .env.example               # Template variables d'env (committé, sans secrets)
 │   ├── package.json               # Dépendances Fastify + feed-parser
 │   └── tsconfig.json              # Config TypeScript strict (NodeNext)
 ├── docs/
@@ -569,7 +606,8 @@ Le backend suit une architecture en couches séparant les responsabilités :
 | Couche | Dossier | Rôle | Connaît HTTP ? |
 |---|---|---|---|
 | **Models** | `src/models/` | Contrats de données (interfaces TypeScript / DTOs) | Non |
-| **Services** | `src/services/` | Logique métier (fetch, parsing, transformations) | Non |
+| **Providers** | `src/providers/` | Implémentations concrètes des interfaces (Strategy Pattern) | Non |
+| **Services** | `src/services/` | Logique métier (fetch, parsing, orchestration, factory) | Non |
 | **Routes** | `src/routes/` | Couche HTTP (validation requêtes, codes de statut, formatage réponses) | Oui |
 | **Server** | `src/server.ts` | Point d'entrée — crée l'instance Fastify et enregistre les routes | Oui |
 
@@ -584,6 +622,31 @@ export async function rssRoutes(app: FastifyInstance): Promise<void> {
 
 // server.ts — enregistrement
 await app.register(rssRoutes);
+await app.register(aiRoutes);
+```
+
+**Strategy Pattern (providers IA)** : une interface `AiProvider` définit le contrat. Chaque provider (Mock, Mistral) l'implémente. Une factory dans `AiService` instancie le bon provider selon `AI_PROVIDER`. Ajouter un provider = 1 fichier + 1 case dans le switch.
+
+```typescript
+// models/ai.model.ts — contrat
+export interface AiProvider {
+  readonly name: string;
+  generate(type: ContentType, articles: AiArticleInput[], projectName?: string): Promise<string>;
+}
+
+// providers/mistral-ai.provider.ts — implémentation
+export class MistralAiProvider implements AiProvider {
+  readonly name = 'mistral';
+  async generate(...) { /* POST vers api.mistral.ai */ }
+}
+
+// services/ai.service.ts — factory
+function createProvider(): AiProvider {
+  switch (process.env['AI_PROVIDER']) {
+    case 'mistral': return new MistralAiProvider();
+    default:        return new MockAiProvider();
+  }
+}
 ```
 
 **Endpoints disponibles** :
@@ -593,8 +656,9 @@ await app.register(rssRoutes);
 | `GET` | `/api/health` | Health check — retourne `{ status: "ok" }` |
 | `GET` | `/api/rss/fetch?url=` | Fetch et parse un seul flux RSS/Atom |
 | `POST` | `/api/rss/fetch-multiple` | Batch fetch — body `{ urls: string[] }`, max 20 URLs |
+| `POST` | `/api/ai/generate` | Génère du contenu IA — body `{ type, articles, projectName? }`, max 10 articles |
 
-L'endpoint batch utilise `Promise.allSettled()` pour la tolérance aux pannes partielles. Chaque `FeedResult` contient les articles récupérés ou un message d'erreur.
+L'endpoint batch RSS utilise `Promise.allSettled()` pour la tolérance aux pannes partielles. L'endpoint IA délègue au provider actif via la factory.
 
 | Racine | Orchestration des workspaces | `package.json` avec `"workspaces": ["client", "api"]` |
 
@@ -656,12 +720,15 @@ Pour un projet solo avec montée en compétence :
 | Mesure | Comment |
 |---|---|
 | Pas de secrets côté client | Les clés API ne sont jamais dans le code source |
+| Clés API dans `.env` | Les secrets (`MISTRAL_API_KEY`) sont dans `.env` (non committé). Seul `.env.example` (template sans secrets) est versionné |
+| `--env-file` natif | Node.js 22 charge le `.env` nativement — pas de package `dotenv` (moins de surface d'attaque) |
 | Dépendances auditées | `npm audit` régulier pour détecter les vulnérabilités |
 | Intégrité des paquets | `package-lock.json` committé, vérification SHA-512 automatique par npm |
 | CSP (Content Security Policy) | Headers de sécurité pour empêcher les injections XSS |
 | Liens externes sécurisés | `target="_blank"` toujours avec `rel="noopener noreferrer"` |
 | Clés localStorage non sensibles | Les clés de stockage ne contiennent pas de données personnelles |
-| Limite batch | L'endpoint `POST /api/rss/fetch-multiple` refuse plus de 20 URLs par requête (protection contre les abus) |
+| Limite batch RSS | L'endpoint `POST /api/rss/fetch-multiple` refuse plus de 20 URLs par requête (protection contre les abus) |
+| Limite articles IA | L'endpoint `POST /api/ai/generate` refuse plus de 10 articles (protection tokens API) |
 
 ---
 
@@ -777,7 +844,7 @@ it('should debounce', () => {
 |---|---|---|
 | **9** | Backend Fastify : setup monorepo + endpoint RSS réel + proxy Angular | ✅ Terminé |
 | **10** | Intégration Angular ↔ Backend RSS (remplacement des mocks articles) | ✅ Terminé |
-| **11** | Backend : endpoint IA avec Strategy Pattern (Claude + Ollama + Mock) | ⬜ À faire |
+| **11** | Backend : endpoint IA avec Strategy Pattern (Mistral + Mock) | ✅ Terminé |
 | **12** | Intégration Angular ↔ Backend IA (remplacement des mocks génération) | ⬜ À faire |
 | **13** | Tests E2E (Playwright), sécurité, RGPD, build production | ⬜ À faire |
 
@@ -818,6 +885,14 @@ it('should debounce', () => {
 **Solution envisagée** : Le backend reçoit une URL de site web → télécharge la page HTML → cherche `<link rel="alternate" type="application/rss+xml">` dans le `<head>` → retourne l'URL du flux RSS. Si aucun flux trouvé, retourne une erreur explicite avec les conventions courantes à essayer (`/feed`, `/rss`, `/atom.xml`).
 
 **Quand** : Sous-étape autonome.
+
+### TODO 11.x — Enrichissement du contenu avant génération
+
+**Problème** : L'IA reçoit le snippet RSS (souvent les 200 premiers caractères tronqués). Suffisant pour une synthèse ou une revue de presse, insuffisant pour un post LinkedIn ou un article original — l'IA n'a pas assez de contexte.
+
+**Solution envisagée** : Avant d'envoyer à l'IA, le backend télécharge chaque article sélectionné et extrait le contenu textuel via `mozilla/readability` (même librairie que le mode lecture de Firefox). Le champ `summary` contiendra le contenu complet au lieu du snippet. Si le fetch échoue (paywall, 403, Cloudflare), le snippet RSS sert de fallback.
+
+**Quand** : Sous-étape autonome. L'interface `AiProvider` ne change pas — seul le contenu de `summary` sera plus riche.
 
 ---
 
@@ -867,6 +942,12 @@ it('should debounce', () => {
 | `HttpClient` | Service Angular pour les requêtes HTTP. Retourne des Observables. Activé via `provideHttpClient()` dans `app.config.ts`. |
 | `firstValueFrom()` | Fonction RxJS qui prend la première valeur d'un Observable et la retourne comme Promise. Utile pour convertir un appel `HttpClient` en `async/await`. L'Observable doit émettre au moins une valeur (sinon erreur). |
 | `Promise.allSettled()` | Attend que toutes les promesses se terminent (succès ou échec). Contrairement à `Promise.all()`, ne rejette pas au premier échec — retourne le résultat individuel de chaque promesse. Utilisé pour la tolérance aux pannes partielles (batch RSS). |
+| `Strategy Pattern` | Design pattern qui définit une famille d'algorithmes interchangeables via une interface commune. Une factory sélectionne l'implémentation à runtime. Dans le projet : `AiProvider` (interface) + `MockAiProvider` / `MistralAiProvider` (implémentations) + factory dans `AiService`. |
+| `Provider (IA)` | Implémentation concrète de l'interface `AiProvider`. Chaque provider encapsule l'appel à une API spécifique (Mistral, Claude, mock). Le code appelant ne connaît que l'interface. |
+| `Factory function` | Fonction qui crée et retourne un objet sans exposer la logique de création. `createProvider()` décide quelle classe instancier selon `AI_PROVIDER`. |
+| `Prompt engineering` | Technique de rédaction des instructions envoyées à un modèle IA. Le prompt système définit le rôle et le style, le prompt utilisateur fournit les données. Chaque `ContentType` a son propre prompt. |
+| `.env / .env.example` | `.env` contient les secrets (clés API) — JAMAIS committé. `.env.example` est le template committé qui documente les variables attendues. Pattern standard 12-factor app. |
+| `12-factor app` | Méthodologie de développement d'applications cloud-native. Principe III : la configuration (clés API, ports) vient de l'environnement (`process.env`), pas du code source. |
 | `tsx` | Outil qui exécute du TypeScript directement sans étape de compilation préalable. `tsx watch` relance automatiquement le serveur à chaque modification — équivalent de `ng serve` pour le backend. |
 | `feed-parser` | Package `@rowanmanning/feed-parser` qui parse du XML RSS/Atom en objets JavaScript structurés. Ne fait que le parsing (pas le téléchargement) — on utilise `fetch` natif pour la partie réseau (SRP). |
 | `fetch (Node.js)` | API native de Node.js (depuis v21) pour faire des requêtes HTTP. Équivalent du `fetch` du navigateur. Pas besoin d'installer de librairie externe (axios, got). |

@@ -16,6 +16,7 @@ TechReviewTool is a web application that helps developers and tech professionals
   - Concise synthesis of key points
   - Structured press review
   - Optimized LinkedIn post
+- ✅ **AI Strategy Pattern** — Pluggable AI providers (Mock, Mistral) via environment variable
 - ✅ **Generation history** — Find, expand, copy and export past AI-generated content
 - ✅ **Responsive design** — Mobile-first with adaptive desktop layout (sidebar + contextual navigation)
 - ✅ **Tested** — 137 unit tests across 7 test files (services, pipes, components)
@@ -28,6 +29,7 @@ TechReviewTool is a web application that helps developers and tech professionals
 | Angular | 21.1.4 (Active) | Frontend framework |
 | Fastify | 5.x | Backend HTTP framework (TypeScript) |
 | TypeScript | 5.8+ (client) / 5.9+ (api) | Type-safe JavaScript |
+| Mistral AI API | mistral-small-latest | AI content generation (synthesis, press review, LinkedIn) |
 | @rowanmanning/feed-parser | 2.x | RSS and Atom feed parser |
 | SCSS | — | Styling with variables, nesting, mixins |
 | Tailwind CSS | 4.x | Utility-first CSS framework |
@@ -117,12 +119,19 @@ tech-review-tool/                      ← Monorepo root (npm workspaces)
 ├── api/                                        ← Fastify backend (TypeScript)
 │   ├── src/
 │   │   ├── models/
+│   │   │   ├── ai.model.ts                     # AiProvider interface + shared types (Strategy Pattern)
 │   │   │   └── rss-article.model.ts            # RSS article DTO + batch types
+│   │   ├── providers/
+│   │   │   ├── mistral-ai.provider.ts          # Mistral AI provider (API chat completions)
+│   │   │   └── mock-ai.provider.ts             # Mock AI provider (dev, no API key needed)
 │   │   ├── routes/
+│   │   │   ├── ai.routes.ts                    # POST /api/ai/generate endpoint
 │   │   │   └── rss.routes.ts                   # GET + POST /api/rss/* endpoints
 │   │   ├── services/
+│   │   │   ├── ai.service.ts                   # AI orchestration + provider factory
 │   │   │   └── rss.service.ts                  # RSS feed fetching and parsing
 │   │   └── server.ts                           # Fastify server entry point
+│   ├── .env.example                            # Environment variables template (committed)
 │   ├── package.json                            # Fastify + feed-parser dependencies
 │   └── tsconfig.json                           # Strict TypeScript config (NodeNext)
 ├── docs/
@@ -154,6 +163,9 @@ cd tech-review-tool
 
 # Install all workspaces (client + api)
 npm install
+
+# Configure environment (copy and edit with your API keys)
+cp api/.env.example api/.env
 ```
 
 ### Running in Development
@@ -194,6 +206,7 @@ Open [http://localhost:4200](http://localhost:4200) in your browser. The Angular
 | `GET` | `/api/health` | Health check — returns `{ status: "ok" }` |
 | `GET` | `/api/rss/fetch?url=<feed_url>` | Fetch and parse an RSS/Atom feed |
 | `POST` | `/api/rss/fetch-multiple` | Batch fetch multiple RSS feeds (body: { urls: string[] }, max 20) |
+| `POST` | `/api/ai/generate` | Generate AI content (body: { type, articles, projectName? }) |
 
 ## 🏗️ Architecture
 
@@ -215,9 +228,10 @@ Dependencies are **hoisted** to a single `node_modules/` at root — shared pack
 The backend follows a layered architecture separating concerns:
 
 ```
-routes/    → HTTP layer (request validation, response formatting)
-services/  → Business logic (fetching, parsing, transformations)
-models/    → Data contracts (TypeScript interfaces / DTOs)
+routes/      → HTTP layer (request validation, response formatting)
+services/    → Business logic (orchestration, provider factory)
+providers/   → AI provider implementations (Strategy Pattern)
+models/      → Data contracts (TypeScript interfaces / DTOs)
 ```
 
 ### Dev Proxy (Angular → Fastify)
@@ -251,10 +265,11 @@ Each `computed()` auto-recalculates when its dependencies change — forming a r
 ### Design Principles
 
 - **SOLID** — Single responsibility components and services
+- **Strategy Pattern** — Pluggable AI providers via interface + factory
 - **Mobile-first** — Responsive design starting from smallest screens
 - **Accessibility (a11y)** — WCAG 2.1 AA compliance (ARIA roles, keyboard navigation, screen readers)
 - **GDPR-friendly** — Local-first data, no unnecessary third-party tracking
-- **Security** — `noopener,noreferrer` on external links, `stopPropagation()` for event isolation
+- **Security** — `noopener,noreferrer` on external links, API keys in `.env` (never committed)
 - **Conventional Commits** — Structured commit messages for readable history
 
 ## 📖 Documentation
@@ -281,7 +296,7 @@ Each `computed()` auto-recalculates when its dependencies change — forming a r
 
 - [x] **Step 9** — Fastify backend: monorepo, real RSS endpoint, Angular proxy
 - [x] **Step 10** — Angular ↔ Backend RSS integration (replace mock articles)
-- [ ] **Step 11** — Backend: AI endpoint with Strategy Pattern (Claude + Ollama + Mock)
+- [x] **Step 11** — Backend: AI endpoint with Strategy Pattern (Mistral + Mock)
 - [ ] **Step 12** — Angular ↔ Backend AI integration (replace mock generation)
 - [ ] **Step 13** — E2E tests (Playwright), security, GDPR, production build
 
@@ -292,7 +307,8 @@ Each `computed()` auto-recalculates when its dependencies change — forming a r
 | **3.5** — Source catalog reuse UI | Add a "📂 From catalog" button to link existing sources without recreating. Architecture ready (`getAvailableForProject()` exists). | Standalone |
 | **5.7** — Audit `theme()` in component SCSS | Tailwind `theme()` doesn't work in Angular component SCSS. Audit and replace with hex values. | Standalone |
 | **6.7** — Dedicated generation page | Create a guided wizard instead of the current selection-first flow. | Standalone |
-| **10.1** — Auto-detect RSS feed URL | User enters a website URL → backend fetches the HTML page → extracts <link rel="alternate" type="application/rss+xml"> from <head> → returns the feed URL. Fallback error if no feed found. | Standalone |
+| **10.1** — Auto-detect RSS feed URL | User enters a website URL → backend fetches the HTML page → extracts `<link rel="alternate" type="application/rss+xml">` from `<head>` → returns the feed URL. Fallback error if no feed found. | Standalone |
+| **11.x** — Content enrichment | Fetch full article content via `mozilla/readability` before sending to AI. Snippet RSS is too short for LinkedIn/article generation. | Standalone |
 
 ## 📄 License
 

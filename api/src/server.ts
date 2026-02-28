@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import { rssRoutes } from "./routes/rss.routes.js";
+import { aiRoutes } from './routes/ai.routes.js';
 
 // Create the Fastify instance with logger enabled
 const app = Fastify({
@@ -13,6 +14,7 @@ app.get("/api/health", async (_request, _reply) => {
 
 // Register route modules
 await app.register(rssRoutes);
+await app.register(aiRoutes);
 
 // Start the server
 const start = async (): Promise<void> => {

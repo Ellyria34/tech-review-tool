@@ -11,6 +11,7 @@ export interface GeneratedContent {
   articleIds: string[];
   content: string;
   createdAt: string;
+  provider?: string; // AI provider that generated this content
 }
 
 /**

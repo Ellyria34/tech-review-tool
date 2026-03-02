@@ -9,9 +9,17 @@
         {{ contentTypeOptions[content().type].label }}
       </span>
     </div>
-    <span class="text-xs text-gray-400">
-      {{ content().createdAt | relativeTime }}
-    </span>
+    <div class="flex items-center gap-1.5">
+      @if (content().provider) {
+        <span class="text-xs text-gray-400">
+          via {{ content().provider }}
+        </span>
+        <span class="text-xs text-gray-300" aria-hidden="true">•</span>
+      }
+      <span class="text-xs text-gray-400">
+        {{ content().createdAt | relativeTime }}
+      </span>
+    </div>
   </div>
 
   <p class="text-xs text-gray-400 mb-3">

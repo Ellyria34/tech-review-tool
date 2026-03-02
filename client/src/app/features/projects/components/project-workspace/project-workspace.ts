@@ -1,4 +1,4 @@
-import { Component, inject, computed, OnInit, signal } from '@angular/core';
+import { Component, inject, computed, signal, effect } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ProjectService } from '../../services/project.service';
 import { SourceService } from '../../../sources/services/source.service';
@@ -20,7 +20,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
   templateUrl: './project-workspace.html',
   styleUrl: './project-workspace.scss',
 })
-export class ProjectWorkspace implements OnInit{
+export class ProjectWorkspace{
   //injections
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -79,9 +79,13 @@ export class ProjectWorkspace implements OnInit{
     this.router.navigate(['/projects']);
   }
 
-  ngOnInit(): void {
-    const projectId = this.route.snapshot.paramMap.get('id') ?? '';
-    this.articleService.setCurrentProject(projectId);
-    this.aiService.setCurrentProject(projectId);
+  constructor() {
+    effect(() => {
+      const id = this.projectId();
+      if (id) {
+        this.articleService.setCurrentProject(id);
+        this.aiService.setCurrentProject(id);
+      }
+    });
   }
 }

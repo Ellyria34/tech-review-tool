@@ -11,15 +11,16 @@ TechReviewTool is a web application that helps developers and tech professionals
 - ✅ **Multi-project workspace** — Organize your tech watch by theme (Cybersecurity, AI, Frontend...)
 - ✅ **Configurable RSS sources** — Add/remove sources per project (global catalog, many-to-many)
 - ✅ **Smart filtering** — Filter articles by keywords, time window (12h, 24h, 48h, 7d) and source
-- ✅ **Article selection** — Select articles with checkboxes, select all, sticky selection bar
+- ✅ **Article selection** — Select articles with checkboxes, select all, sticky selection bar (max 15)
 - ✅ **AI-powered generation** — Select articles and generate:
   - Concise synthesis of key points
   - Structured press review
   - Optimized LinkedIn post
 - ✅ **AI Strategy Pattern** — Pluggable AI providers (Mock, Mistral) via environment variable
+- ✅ **Real AI integration** — Frontend calls backend API, DTO mapping, error handling with retry
 - ✅ **Generation history** — Find, expand, copy and export past AI-generated content
 - ✅ **Responsive design** — Mobile-first with adaptive desktop layout (sidebar + contextual navigation)
-- ✅ **Tested** — 137 unit tests across 7 test files (services, pipes, components)
+- ✅ **Tested** — 151 unit tests across 7 test files (services, pipes, components)
 - ✅ **Real RSS backend** — Fastify API fetching and parsing live RSS/Atom feeds
 
 ## 🛠️ Tech Stack
@@ -50,6 +51,7 @@ tech-review-tool/                      ← Monorepo root (npm workspaces)
 │   │   │   │   │   ├── header/                 # App header (mobile only, hidden on desktop)
 │   │   │   │   │   └── sidebar/                # Desktop sidebar (project list + contextual nav)
 │   │   │   │   └── services/
+│   │   │   │       ├── ai-api.service.ts       # Thin HTTP client for backend AI API
 │   │   │   │       ├── rss-api.service.ts      # Thin HTTP client for backend RSS API
 │   │   │   │       └── storage.helper.ts       # Generic localStorage helpers
 │   │   │   ├── features/
@@ -58,7 +60,7 @@ tech-review-tool/                      ← Monorepo root (npm workspaces)
 │   │   │   │   │   │   ├── ai-action-panel/    # Bottom sheet: type selection + generation + result
 │   │   │   │   │   │   └── generated-content/  # Content display with copy, .md export, delete
 │   │   │   │   │   └── services/
-│   │   │   │   │       └── ai.service.ts       # Mock generation, localStorage, project filtering
+│   │   │   │   │       └── ai.service.ts       # Backend AI calls, DTO mapping, localStorage
 │   │   │   │   ├── articles/                   # Article listing, filters, selection
 │   │   │   │   │   ├── components/
 │   │   │   │   │   │   ├── article-card/       # Single article card (checkbox, metadata, link)
@@ -89,6 +91,7 @@ tech-review-tool/                      ← Monorepo root (npm workspaces)
 │   │   │   │   │   ├── categories.ts           # Category labels, icons, colors
 │   │   │   │   │   └── mock-articles.ts        # Mock article templates (dev only)
 │   │   │   │   ├── models/                     # TypeScript interfaces
+│   │   │   │   │   ├── ai-api.model.ts         # Backend AI DTOs (AiGenerateRequestDto, ResponseDto)
 │   │   │   │   │   ├── article.model.ts        # Article, ArticleFilters, TimeWindow
 │   │   │   │   │   ├── generated-content.model.ts
 │   │   │   │   │   ├── project.model.ts        # ReviewProject
@@ -191,7 +194,7 @@ Open [http://localhost:4200](http://localhost:4200) in your browser. The Angular
 | `npm run dev` | `api/` | Start Fastify server with hot reload (tsx watch) |
 | `ng serve` | `client/` | Start Angular dev server with proxy to backend |
 | `ng build` | `client/` | Build for production |
-| `ng test` | `client/` | Run unit tests (137 tests) |
+| `ng test` | `client/` | Run unit tests (151 tests) |
 | `ng test --watch=false` | `client/` | Run tests once (CI mode) |
 | `ng lint` | `client/` | Run ESLint code quality checks |
 | `npx prettier --check src/` | `client/` | Check code formatting |
@@ -206,7 +209,7 @@ Open [http://localhost:4200](http://localhost:4200) in your browser. The Angular
 | `GET` | `/api/health` | Health check — returns `{ status: "ok" }` |
 | `GET` | `/api/rss/fetch?url=<feed_url>` | Fetch and parse an RSS/Atom feed |
 | `POST` | `/api/rss/fetch-multiple` | Batch fetch multiple RSS feeds (body: { urls: string[] }, max 20) |
-| `POST` | `/api/ai/generate` | Generate AI content (body: { type, articles, projectName? }) |
+| `POST` | `/api/ai/generate` | Generate AI content (body: { type, articles, projectName? }, max 15 articles) |
 
 ## 🏗️ Architecture
 
@@ -234,6 +237,17 @@ providers/   → AI provider implementations (Strategy Pattern)
 models/      → Data contracts (TypeScript interfaces / DTOs)
 ```
 
+### Frontend ↔ Backend Integration
+
+The frontend communicates with the backend via thin HTTP client services (SRP pattern):
+
+```
+AiApiService  (HTTP only)  →  AiService  (state + DTO mapping)  →  Components (UI)
+RssApiService (HTTP only)  →  ArticleService (state + mapping)  →  Components (UI)
+```
+
+Each integration layer handles bidirectional DTO mapping between frontend models and backend contracts. Type differences (e.g., frontend `linkedin-post` ↔ backend `linkedin`) are translated in the mapping layer.
+
 ### Dev Proxy (Angular → Fastify)
 
 In development, Angular (port 4200) proxies `/api/*` requests to Fastify (port 3000) via `proxy.conf.json`. This avoids CORS issues without requiring CORS headers. The proxy only exists in the dev server (`ng serve`) and is not deployed to production.
@@ -258,6 +272,9 @@ RssApiService (HTTP)  →  ArticleService (state)  →  computed projectArticles
 (POST /api/rss/...)      Signal _articles            (filtered by project)       (+ keywords, timeWindow)
                                                                                         ↓
                                                                                   displayed in template
+
+AiApiService (HTTP)   →  AiService (state)        →  computed projectContents  →  displayed in template
+(POST /api/ai/...)       Signal _generatedContents    (filtered by project)
 ```
 
 Each `computed()` auto-recalculates when its dependencies change — forming a reactive pipeline that updates the UI automatically.
@@ -266,6 +283,7 @@ Each `computed()` auto-recalculates when its dependencies change — forming a r
 
 - **SOLID** — Single responsibility components and services
 - **Strategy Pattern** — Pluggable AI providers via interface + factory
+- **DTO Pattern** — Separate data contracts for API communication and frontend models
 - **Mobile-first** — Responsive design starting from smallest screens
 - **Accessibility (a11y)** — WCAG 2.1 AA compliance (ARIA roles, keyboard navigation, screen readers)
 - **GDPR-friendly** — Local-first data, no unnecessary third-party tracking
@@ -297,7 +315,7 @@ Each `computed()` auto-recalculates when its dependencies change — forming a r
 - [x] **Step 9** — Fastify backend: monorepo, real RSS endpoint, Angular proxy
 - [x] **Step 10** — Angular ↔ Backend RSS integration (replace mock articles)
 - [x] **Step 11** — Backend: AI endpoint with Strategy Pattern (Mistral + Mock)
-- [ ] **Step 12** — Angular ↔ Backend AI integration (replace mock generation)
+- [x] **Step 12** — Angular ↔ Backend AI integration (DTOs, error handling, selection limit, 151 tests)
 - [ ] **Step 13** — E2E tests (Playwright), security, GDPR, production build
 
 ### TODOs (deferred improvements)

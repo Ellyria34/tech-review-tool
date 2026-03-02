@@ -3,7 +3,7 @@
 > **Nom du projet** : TechReviewTool — Agrégateur intelligent de veille technologique
 > **Date de création** : 14 février 2026
 > **Auteur** : Ellyria34 - Sarah LLEON
-> **Statut** : Phase 1 (frontend) terminée ✅ — Phase 2 (backend) en cours — Step 11 terminé (Backend IA Strategy Pattern)
+> **Statut** : Phase 1 (frontend) terminée ✅ — Phase 2 (backend) en cours — Step 12 terminé (Angular ↔ Backend IA)
 
 ---
 
@@ -38,7 +38,7 @@ Une application web qui :
 - Permet de **configurer des sources RSS** par thématique (IA, .NET, Front, Back, UI, Cybersécurité...)
 - **Agrège les articles récents** selon une fenêtre temporelle (12h, 24h, 48h, 7j)
 - **Filtre par mots-clés** (GPT-5, Claude Code, faille, ransomware...)
-- Permet de **sélectionner des articles** dans les résultats
+- Permet de **sélectionner des articles** dans les résultats (maximum 15 pour la génération IA)
 - Offre 3 **actions IA** sur la sélection :
   - **Synthèse** : résumé concis des points clés avec liens vers les sources
   - **Revue de presse** : format journalistique structuré
@@ -344,24 +344,31 @@ readonly filteredArticles = computed(() => {
 
 Chaque `computed()` se recalcule automatiquement quand une de ses dépendances change. C'est un pipeline réactif — modifier un filtre met à jour l'affichage sans intervention manuelle.
 
-### 4.2 Sélection avec Set
+### 4.2 Sélection avec Set (+ limite max)
 
-La sélection d'articles utilise un `Set<string>` pour des recherches en O(1) :
+La sélection d'articles utilise un `Set<string>` pour des recherches en O(1), avec une limite de sélection pour la génération IA :
 
 ```typescript
-// Set<string> pour la sélection — recherche O(1) au lieu de O(n)
+// Constante exportée — alignée avec la validation backend (MAX_ARTICLES = 15)
+export const MAX_ARTICLE_SELECTION = 15;
+
 private _selectedIds = signal(new Set<string>());
-isSelected(id: string): boolean {
-  return this._selectedIds().has(id);
-}
+readonly isSelectionFull = computed(() => this.selectedCount() >= MAX_ARTICLE_SELECTION);
+
 toggleSelection(id: string): void {
   this._selectedIds.update(set => {
     const newSet = new Set(set);
-    newSet.has(id) ? newSet.delete(id) : newSet.add(id);
+    if (newSet.has(id)) {
+      newSet.delete(id);        // Deselect always allowed
+    } else if (newSet.size < MAX_ARTICLE_SELECTION) {
+      newSet.add(id);           // Select only if under limit
+    }
     return newSet;
   });
 }
 ```
+
+**Double validation** : le frontend empêche la sélection au-delà de 15 (UX), le backend refuse les requêtes avec plus de 15 articles (sécurité). On ne fait jamais confiance au client.
 
 ### 4.3 Contexte projet
 
@@ -401,28 +408,44 @@ readonly sources = computed(() => {
 });
 ```
 
-`effect()` est préféré à `ngOnInit()` quand l'effet dépend d'un signal qui peut changer (ex: paramètre de route). `effect()` se ré-exécute automatiquement quand ses dépendances changent, alors que `ngOnInit()` ne s'exécute qu'une seule fois à la création du composant.
+**`effect()` vs `ngOnInit()` — quand utiliser lequel ?**
 
-### 4.5 Génération IA — flux async
+| Situation | Outil | Pourquoi |
+|---|---|---|
+| Composant toujours détruit/recréé au changement de route | `ngOnInit` + `snapshot` | Simple, suffisant |
+| Composant qui peut survivre au changement de param de route | `effect()` + `toSignal` | Réactif, se met à jour automatiquement |
 
-La génération de contenu IA utilise `async/await` avec `Promise<T>`. Le pattern `try/finally` garantit que l'état de chargement est nettoyé même en cas d'erreur :
+**Exemple concret (bug corrigé à l'étape 12)** : `ProjectWorkspace` utilise `toSignal(route.paramMap)` pour rendre `projectId` réactif. Mais `ngOnInit` avec `snapshot` ne se ré-exécutait pas quand on naviguait entre projets → le compteur d'historique affichait l'ancien projet. Remplacé par `effect()` qui réagit automatiquement aux changements.
+
+### 4.5 Génération IA — flux HTTP vers signaux
+
+La génération de contenu IA utilise `async/await` avec un appel HTTP réel vers le backend :
 
 ```typescript
 async generate(type: ContentType, articles: Article[], projectId: string): Promise<GeneratedContent> {
   this._isGenerating.set(true);
   this._lastGenerated.set(null);
+  this._generateError.set(null);
   try {
-    await this.simulateDelay(300, 800); // Sera remplacé par l'appel API réel
-    const content = { /* ... */ };
+    const request = this.buildRequest(type, articles);         // Article[] → DTO
+    const response = await firstValueFrom(                     // HTTP POST
+      this.aiApiService.generate(request)
+    );
+    const content = this.mapResponseToContent(                 // DTO → GeneratedContent
+      response, articles, projectId
+    );
     this._generatedContents.update(contents => [...contents, content]);
     return content;
+  } catch (error: unknown) {
+    this._generateError.set(this.extractErrorMessage(error));  // HTTP status → French message
+    throw error;
   } finally {
-    this._isGenerating.set(false); // Toujours exécuté, même en cas d'erreur
+    this._isGenerating.set(false);
   }
 }
 ```
 
-Le service expose un signal `isGenerating` consommé par le composant pour afficher un spinner et bloquer les interactions pendant la génération.
+Le service expose un signal `isGenerating` consommé par le composant pour afficher un spinner et bloquer les interactions pendant la génération, et un signal `generateError` pour afficher les erreurs avec un bouton "Réessayer".
 
 ### 4.6 Intégration backend — flux HTTP vers signaux
 
@@ -440,17 +463,50 @@ ArticleListComponent.loadArticles()
     → computed chain recalcule automatiquement   // projectArticles → filteredArticles → template
 ```
 
-**Séparation des responsabilités** :
+Le flux de génération IA suit le même pattern :
 
-| Couche | Service | Rôle |
-|---|---|---|
-| HTTP | `RssApiService` | Communication réseau uniquement — pas d'état, pas de logique |
-| État | `ArticleService` | Stockage (signaux), filtres (computed), mapping DTO → modèle |
-| Présentation | `ArticleListComponent` | Affichage, états de chargement/erreur, interactions utilisateur |
+```
+AiActionPanel.onGenerate()
+  → AiService.generate(type, articles, projectId)
+    → buildRequest()                              // Article[] → AiGenerateRequestDto
+      → mapContentTypeToApi()                     // 'linkedin-post' → 'linkedin'
+    → AiApiService.generate(request)              // POST /api/ai/generate
+      → HttpClient.post()                         // Observable HTTP
+      → firstValueFrom()                          // Conversion Observable → Promise
+    → mapResponseToContent()                      // AiGenerateResponseDto → GeneratedContent
+      → mapApiTypeToContentType()                 // 'linkedin' → 'linkedin-post'
+    → _generatedContents.update()                 // Signal mis à jour
+    → computed chain recalcule automatiquement    // projectContents → template
+```
 
-**Pattern `firstValueFrom()`** : `HttpClient` retourne un `Observable` qui émet une seule valeur. `firstValueFrom()` le convertit en `Promise` pour utiliser `async/await` avec `try/finally` (pattern déjà établi pour `AiService`).
+**Séparation des responsabilités (pattern répliqué pour RSS et IA)** :
 
-**Tolérance aux pannes partielles** : le backend utilise `Promise.allSettled()` — si 1 flux sur 10 échoue, les 9 autres retournent leurs articles normalement. Le frontend affiche une bannière d'avertissement pour les flux en erreur.
+| Couche | Service RSS | Service IA | Rôle |
+|---|---|---|---|
+| HTTP | `RssApiService` | `AiApiService` | Communication réseau uniquement — pas d'état, pas de logique |
+| État | `ArticleService` | `AiService` | Stockage (signaux), mapping DTO → modèle, gestion d'erreur |
+| Présentation | `ArticleListComponent` | `AiActionPanelComponent` | Affichage, états de chargement/erreur, interactions utilisateur |
+
+### 4.7 Mapping DTO bidirectionnel (pattern découvert à l'étape 12)
+
+Quand deux systèmes communiquent (frontend Angular, backend Fastify), les noms de champs ne correspondent pas toujours. La couche DTO traduit dans les deux sens :
+
+```
+Frontend → Backend (envoi) :
+  ContentType 'linkedin-post'  →  AiContentType 'linkedin'
+  Article.sourceName           →  AiArticleInputDto.source
+
+Backend → Frontend (réception) :
+  AiContentType 'linkedin'     →  ContentType 'linkedin-post'
+  response.generatedAt         →  GeneratedContent.createdAt
+  response.provider            →  GeneratedContent.provider (nouveau champ optionnel)
+```
+
+**Leçon** : les mocks frontend cachent les problèmes d'intégration. Quand tout reste dans le même process JavaScript, les noms sont forcément cohérents. C'est en branchant le vrai backend que les décalages apparaissent — c'est exactement pour ça que la couche DTO et les méthodes de mapping existent.
+
+**Pattern `firstValueFrom()`** : `HttpClient` retourne un `Observable` qui émet une seule valeur. `firstValueFrom()` le convertit en `Promise` pour utiliser `async/await` avec `try/finally` (pattern établi pour les deux services).
+
+**Tolérance aux pannes partielles** : le backend RSS utilise `Promise.allSettled()` — si 1 flux sur 10 échoue, les 9 autres retournent leurs articles normalement. Le frontend affiche une bannière d'avertissement pour les flux en erreur. Pour l'IA, les erreurs HTTP sont mappées vers des messages français avec un bouton "Réessayer".
 
 ---
 
@@ -483,7 +539,7 @@ export class ProjectService {
 **Exemples concrets dans le projet** :
 - Les données mock (`MOCK_ARTICLE_TEMPLATES`) sont séparées dans `shared/data/mock-articles.ts`, pas dans le service
 - `ArticleService` gère les articles et les filtres, `AiService` gère la génération IA — deux domaines distincts
-- `RssApiService` gère uniquement la communication HTTP avec le backend — `ArticleService` gère l'état, les filtres et le mapping DTO → modèle
+- `RssApiService` et `AiApiService` gèrent uniquement la communication HTTP — les services métier gèrent l'état, les filtres et le mapping DTO → modèle
 - Les opérations localStorage sont factorisées dans `storage.helper.ts`, pas dupliquées dans chaque service
 - Chaque AI provider (Mock, Mistral) a sa propre classe — l'orchestration est dans `AiService`, pas dans les providers
 
@@ -502,7 +558,7 @@ Un service implémentant une interface peut remplacer un autre. Exemple : `MockA
 
 ### I — Interface Segregation (Ségrégation des interfaces)
 
-Plein de petits services spécialisés plutôt qu'un "God Service" qui fait tout : `ProjectService`, `SourceService`, `ArticleService`, `RssApiService`, `AiService` — chacun a un domaine clair. L'interface `AiProvider` ne contient que ce dont les providers ont besoin (`name` + `generate()`), pas de méthodes superflues.
+Plein de petits services spécialisés plutôt qu'un "God Service" qui fait tout : `ProjectService`, `SourceService`, `ArticleService`, `RssApiService`, `AiApiService`, `AiService` — chacun a un domaine clair. L'interface `AiProvider` ne contient que ce dont les providers ont besoin (`name` + `generate()`), pas de méthodes superflues.
 
 ### D — Dependency Inversion
 
@@ -531,6 +587,7 @@ tech-review-tool/                  ← Monorepo root (npm workspaces)
 │   │   │   │   │   ├── header/        # Header de l'app (mobile uniquement)
 │   │   │   │   │   └── sidebar/       # Sidebar desktop (liste projets + nav)
 │   │   │   │   └── services/
+│   │   │   │       ├── ai-api.service.ts    # Client HTTP pour l'API IA backend
 │   │   │   │       ├── rss-api.service.ts   # Client HTTP pour l'API RSS backend
 │   │   │   │       └── storage.helper.ts
 │   │   │   ├── features/          # Domaines fonctionnels
@@ -542,23 +599,14 @@ tech-review-tool/                  ← Monorepo root (npm workspaces)
 │   │   │   └── shared/            # Composants réutilisables, pipes, directives, modèles
 │   │   │       ├── data/          # Données centralisées (catégories, mock articles)
 │   │   │       ├── models/        # Interfaces TypeScript
+│   │   │       │   ├── ai-api.model.ts        # DTOs backend IA (AiGenerateRequestDto, ResponseDto)
 │   │   │       │   ├── article.model.ts
 │   │   │       │   ├── generated-content.model.ts
 │   │   │       │   ├── project.model.ts
-│   │   │       │   ├── rss-api.model.ts       # DTOs backend (RssArticleDto, FeedResult)
+│   │   │       │   ├── rss-api.model.ts       # DTOs backend RSS (RssArticleDto, FeedResult)
 │   │   │       │   ├── source.model.ts
 │   │   │       │   └── index.ts               # Barrel exports
 │   │   │       └── pipes/         # RelativeTimePipe
-│   │   ├── index.html
-│   │   ├── main.ts
-│   │   ├── styles.scss
-│   │   └── tailwind.css
-│   ├── angular.json
-│   ├── eslint.config.js
-│   ├── package.json               # Dépendances Angular
-│   ├── tsconfig.json
-│   ├── tsconfig.app.json
-│   └── tsconfig.spec.json
 ├── api/                           ← Backend Fastify (TypeScript)
 │   ├── src/
 │   │   ├── models/
@@ -568,7 +616,7 @@ tech-review-tool/                  ← Monorepo root (npm workspaces)
 │   │   │   ├── mistral-ai.provider.ts # Provider Mistral (API chat completions)
 │   │   │   └── mock-ai.provider.ts    # Provider mock (dev, pas de clé API)
 │   │   ├── routes/
-│   │   │   ├── ai.routes.ts           # POST /api/ai/generate
+│   │   │   ├── ai.routes.ts           # POST /api/ai/generate (max 15 articles)
 │   │   │   └── rss.routes.ts         # GET + POST /api/rss/*
 │   │   ├── services/
 │   │   │   ├── ai.service.ts          # Orchestration IA + factory provider
@@ -592,14 +640,7 @@ tech-review-tool/                  ← Monorepo root (npm workspaces)
 | `features/` | Domaines métier isolés | Spécifique à chaque domaine |
 | `shared/` | Composants, pipes, directives réutilisables | N fois dans plusieurs features |
 
-### 6.3 Logique d'organisation monorepo (racine)
-
-| Dossier | Rôle | Package manager |
-|---|---|---|
-| `client/` | Frontend Angular — tout le code UI | `package.json` propre (Angular, Tailwind, Vitest) |
-| `api/` | Backend Fastify — API REST, RSS, IA | `package.json` propre (Fastify, feed-parser, providers IA) |
-
-### 6.4 Architecture backend (api/)
+### 6.3 Architecture backend (api/)
 
 Le backend suit une architecture en couches séparant les responsabilités :
 
@@ -611,44 +652,6 @@ Le backend suit une architecture en couches séparant les responsabilités :
 | **Routes** | `src/routes/` | Couche HTTP (validation requêtes, codes de statut, formatage réponses) | Oui |
 | **Server** | `src/server.ts` | Point d'entrée — crée l'instance Fastify et enregistre les routes | Oui |
 
-**Pattern plugin Fastify** : chaque fichier de routes exporte une fonction async qui reçoit l'instance Fastify et y enregistre ses routes via `app.register()`. Chaque plugin est autonome et testable indépendamment.
-
-```typescript
-// routes/rss.routes.ts — pattern plugin
-export async function rssRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/api/rss/fetch", async (request, reply) => { /* ... */ });
-  app.post("/api/rss/fetch-multiple", async (request, reply) => { /* ... */ });
-}
-
-// server.ts — enregistrement
-await app.register(rssRoutes);
-await app.register(aiRoutes);
-```
-
-**Strategy Pattern (providers IA)** : une interface `AiProvider` définit le contrat. Chaque provider (Mock, Mistral) l'implémente. Une factory dans `AiService` instancie le bon provider selon `AI_PROVIDER`. Ajouter un provider = 1 fichier + 1 case dans le switch.
-
-```typescript
-// models/ai.model.ts — contrat
-export interface AiProvider {
-  readonly name: string;
-  generate(type: ContentType, articles: AiArticleInput[], projectName?: string): Promise<string>;
-}
-
-// providers/mistral-ai.provider.ts — implémentation
-export class MistralAiProvider implements AiProvider {
-  readonly name = 'mistral';
-  async generate(...) { /* POST vers api.mistral.ai */ }
-}
-
-// services/ai.service.ts — factory
-function createProvider(): AiProvider {
-  switch (process.env['AI_PROVIDER']) {
-    case 'mistral': return new MistralAiProvider();
-    default:        return new MockAiProvider();
-  }
-}
-```
-
 **Endpoints disponibles** :
 
 | Méthode | Route | Description |
@@ -656,13 +659,7 @@ function createProvider(): AiProvider {
 | `GET` | `/api/health` | Health check — retourne `{ status: "ok" }` |
 | `GET` | `/api/rss/fetch?url=` | Fetch et parse un seul flux RSS/Atom |
 | `POST` | `/api/rss/fetch-multiple` | Batch fetch — body `{ urls: string[] }`, max 20 URLs |
-| `POST` | `/api/ai/generate` | Génère du contenu IA — body `{ type, articles, projectName? }`, max 10 articles |
-
-L'endpoint batch RSS utilise `Promise.allSettled()` pour la tolérance aux pannes partielles. L'endpoint IA délègue au provider actif via la factory.
-
-| Racine | Orchestration des workspaces | `package.json` avec `"workspaces": ["client", "api"]` |
-
-**Règle** : `npm install` se lance toujours depuis la **racine**. Les commandes spécifiques (`ng serve`, `ng test`) se lancent depuis le **dossier du workspace** (`cd client`).
+| `POST` | `/api/ai/generate` | Génère du contenu IA — body `{ type, articles, projectName? }`, max 15 articles |
 
 ---
 
@@ -675,12 +672,12 @@ Chaque commit suit le format : `type(scope): description`
 | Type | Quand | Exemple |
 |---|---|---|
 | `feat` | Nouvelle fonctionnalité | `feat(projects): add project list component` |
-| `fix` | Correction de bug | `fix(articles): fix source filter empty on init` |
+| `fix` | Correction de bug | `fix(workspace): use effect() instead of ngOnInit for project context` |
 | `chore` | Maintenance, config | `chore: add .gitattributes for LF normalization` |
-| `docs` | Documentation | `docs: update README with Step 5 completion` |
+| `docs` | Documentation | `docs: update README with Step 12 completion` |
 | `style` | Formatage (pas de logique) | `style: fix indentation in app.html` |
 | `refactor` | Refactoring sans changement fonctionnel | `refactor: restructure to monorepo with npm workspaces` |
-| `test` | Ajout/modification de tests | `test(projects): add unit tests for ProjectService` |
+| `test` | Ajout/modification de tests | `test(ai): rewrite tests for real backend API integration` |
 
 ### 7.2 Branching Strategy
 
@@ -692,13 +689,13 @@ Pour un projet solo avec montée en compétence :
 ### 7.3 Workflow quotidien
 
 ```
-1. git checkout -b feat/project-list    # Nouvelle branche
-2. git push -u origin feat/project-list # Lier branche locale ↔ distante
-3. Coder + tester localement            # cd client && ng serve
-4. git add . && git commit              # Commits réguliers
-5. git push                             # Push (sans préciser origin grâce au -u)
-6. Créer une Pull Request sur GitHub    # Revue de code
-7. Merger dans main                     # Valider
+1. git checkout -b feat/step-12-ai-integration    # Nouvelle branche
+2. git push -u origin feat/step-12-ai-integration # Lier branche locale ↔ distante
+3. Coder + tester localement                      # cd client && ng serve
+4. git add . && git commit                        # Commits réguliers
+5. git push                                       # Push (sans préciser origin grâce au -u)
+6. Créer une Pull Request sur GitHub              # Revue de code
+7. Merger dans main                               # Valider
 ```
 
 ---
@@ -728,7 +725,7 @@ Pour un projet solo avec montée en compétence :
 | Liens externes sécurisés | `target="_blank"` toujours avec `rel="noopener noreferrer"` |
 | Clés localStorage non sensibles | Les clés de stockage ne contiennent pas de données personnelles |
 | Limite batch RSS | L'endpoint `POST /api/rss/fetch-multiple` refuse plus de 20 URLs par requête (protection contre les abus) |
-| Limite articles IA | L'endpoint `POST /api/ai/generate` refuse plus de 10 articles (protection tokens API) |
+| Limite articles IA | L'endpoint `POST /api/ai/generate` refuse plus de 15 articles (protection tokens API). Double validation : frontend bloque la sélection, backend valide la requête |
 
 ---
 
@@ -740,13 +737,14 @@ Pour un projet solo avec montée en compétence :
 |---|---|
 | Contraste | Ratio minimum 4.5:1 pour le texte |
 | Navigation clavier | Tous les éléments interactifs accessibles au clavier (Tab, Enter, Escape) |
-| Lecteurs d'écran | Attributs ARIA sur les composants dynamiques (`role="dialog"`, `role="radio"`, `role="modal"`, `aria-checked`, `aria-busy`, `aria-label`) |
+| Lecteurs d'écran | Attributs ARIA sur les composants dynamiques (`role="dialog"`, `role="radio"`, `role="modal"`, `aria-checked`, `aria-busy`, `aria-label`, `aria-disabled`) |
 | Focus visible | Indicateur de focus toujours visible (`focus-visible` avec outline teal) |
 | Sémantique HTML | Utiliser les bonnes balises (`<nav>`, `<main>`, `<article>`, `<button>`) |
 | Labels | Tous les champs de formulaire ont un label associé |
 | Feedback accessible | `role="status"` pour les messages de confirmation (ex: "Copié !"), `role="alert"` pour les erreurs |
-| États de chargement | `role="status"` avec `aria-label` sur le spinner de chargement des articles |
+| États de chargement | `role="status"` avec `aria-live="polite"` sur les messages de chargement dynamiques |
 | Événements clavier | `(click)` toujours accompagné de `(keydown)` ou `(keyup)` (ESLint enforce cette règle) |
+| Sélection désactivée | `aria-disabled` sur les cartes articles quand la limite de sélection est atteinte |
 
 ---
 
@@ -759,23 +757,10 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 | Phase | Type de test | Outil | Quoi tester |
 |---|---|---|---|
 | **Étape 8** (fin Phase 1) | Unitaire + Composant | Vitest + Angular Testing Library | Services, pipes, logique métier frontend — avec les mocks actuels |
-| **Étapes 9-12** (pendant backend) | Unitaire backend | Vitest | Routes Fastify, services RSS, providers IA |
+| **Étapes 10-12** (pendant intégration) | Unitaire frontend mis à jour | Vitest | Services avec mocks des services HTTP (RssApiService, AiApiService) |
 | **Étape 13** (après intégration) | E2E | Playwright | Parcours utilisateur complets (créer projet → ajouter sources → voir articles réels → générer contenu IA) |
 
-**Pourquoi intercaler ?** Tester les services frontend sur les mocks a de la valeur : ça vérifie que la logique métier (filtres, sélection, computed chains) est correcte indépendamment de la source de données. Quand on branchera le vrai backend, si un test casse, on saura que c'est le backend qui pose problème, pas le frontend.
-
-### Règle de décision : quoi tester ?
-
-| Type de code | Tester ? | Pourquoi |
-|---|---|---|
-| **Services** (logique métier) | ✅ Oui — priorité maximale | C'est TON code, c'est la logique métier |
-| **Pipes** (transformateurs) | ✅ Oui | Fonctions pures, faciles à tester, beaucoup de branches |
-| **Composants avec logique propre** (debounce, RxJS) | ✅ Oui | Logique qui n'est pas dans un service |
-| **Composants d'affichage** (cards, lists) | ❌ Non | Juste du HTML — testés par les tests E2E |
-| **Formulaires** (FormBuilder, Validators, Router) | ❌ Non | "Plomberie" Angular — déjà testée par le framework |
-| **Composants orchestrateurs** (workspace) | ❌ Non | Connectent des services déjà testés à 100% |
-
-### Fichiers de test — Étapes 8 + 10
+### Fichiers de test — Étapes 8 + 10 + 12
 
 | Fichier | Tests | Ce qui est couvert |
 |---|---|---|
@@ -784,9 +769,9 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 | `project.service.spec.ts` | 19 | CRUD complet, validation, cascade delete, timestamps |
 | `source.service.spec.ts` | 33 | Catalogue CRUD, liaisons Many-to-Many, computed queries |
 | `article.service.spec.ts` | 38 | Chaîne computed, filtres combinés, sélection, déduplication, fetch backend, erreurs partielles |
-| `ai.service.spec.ts` | 20 | Génération async, transitions d'état, persistence, cascade |
+| `ai.service.spec.ts` | 34 | Backend API calls, DTO mapping, type translation, error handling (HTTP 400/429/500/503/0), persistence, cascade |
 | `article-filters.spec.ts` | 8 | Debounce RxJS 300ms, distinctUntilChanged, cleanup destroy$ |
-| **Total** | **137** | **4/4 services, 1/1 pipe, 2 composants (les seuls avec logique)** |
+| **Total** | **151** | **4/4 services, 1/1 pipe, 2 composants (les seuls avec logique)** |
 
 ### Techniques de test utilisées
 
@@ -795,29 +780,11 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 | `vi.useFakeTimers()` + `vi.setSystemTime()` | Contrôler `new Date()`, `setTimeout`, `debounceTime` — tests déterministes |
 | `vi.fn()` + `.toHaveBeenCalledWith()` | Mocks de fonctions — vérifier les appels et arguments |
 | `vi.advanceTimersByTime(ms)` | Avancer le temps pour résoudre debounce/delay sans attendre |
-| `vi.advanceTimersByTimeAsync(ms)` | Idem mais pour les Promises (AiService `simulateDelay`) |
-| Factory functions (`buildArticle()`) | `Partial<T>` + spread — créer des objets de test lisibles |
+| Factory functions (`buildArticle()`, `buildResponse()`) | `Partial<T>` + spread — créer des objets de test lisibles |
 | `localStorage.clear()` dans `beforeEach` + `afterEach` | Double nettoyage pour l'isolation entre tests |
-| Mock `RssApiService` avec `vi.fn()` | Isolation des tests — pas de vraie requête HTTP, réponse contrôlée |
+| Mock `RssApiService` / `AiApiService` avec `vi.fn()` | Isolation des tests — pas de vraie requête HTTP, réponse contrôlée |
 | `of()` de RxJS pour les mocks Observable | Retourne un Observable synchrone — simule `HttpClient.post()` sans réseau |
-
-### Angular 21 et les tests — mode zoneless
-
-Angular 21 fonctionne **sans Zone.js** par défaut. Les utilitaires de test historiques (`fakeAsync`, `tick`) nécessitent Zone.js et ne fonctionnent plus. On utilise les fake timers natifs de Vitest à la place :
-
-```typescript
-// ❌ NE FONCTIONNE PLUS en Angular 21 zoneless
-it('should debounce', fakeAsync(() => {
-  tick(300);
-}));
-
-// ✅ CORRECT — fake timers Vitest natifs
-it('should debounce', () => {
-  vi.useFakeTimers();
-  vi.advanceTimersByTime(300);
-  vi.useRealTimers();
-});
-```
+| `throwError()` de RxJS pour les mocks d'erreur | Simule une erreur HTTP — teste `HttpErrorResponse` et le mapping vers messages français |
 
 ---
 
@@ -845,7 +812,7 @@ it('should debounce', () => {
 | **9** | Backend Fastify : setup monorepo + endpoint RSS réel + proxy Angular | ✅ Terminé |
 | **10** | Intégration Angular ↔ Backend RSS (remplacement des mocks articles) | ✅ Terminé |
 | **11** | Backend : endpoint IA avec Strategy Pattern (Mistral + Mock) | ✅ Terminé |
-| **12** | Intégration Angular ↔ Backend IA (remplacement des mocks génération) | ⬜ À faire |
+| **12** | Intégration Angular ↔ Backend IA (DTOs, mapping, erreurs, limite sélection, 151 tests) | ✅ Terminé |
 | **13** | Tests E2E (Playwright), sécurité, RGPD, build production | ⬜ À faire |
 
 ---
@@ -920,7 +887,7 @@ it('should debounce', () => {
 | `Many-to-Many` | Relation où une entité peut être liée à N autres et inversement. Implémentée via une table de liaison (junction table). |
 | `LinkedSource` | Type enrichi combinant les données du catalogue (Source) avec les données de la liaison (isActive, linkId). |
 | `Set<T>` | Collection sans doublons avec recherche en O(1). Utilisé pour la sélection d'articles. |
-| `Record<K, V>` | Type utilitaire TypeScript qui force l'exhaustivité : chaque valeur de K doit avoir une entrée. Utilisé pour `CONTENT_TYPE_OPTIONS`. |
+| `Record<K, V>` | Type utilitaire TypeScript qui force l'exhaustivité : chaque valeur de K doit avoir une entrée. Utilisé pour `CONTENT_TYPE_OPTIONS` et les mappings de types DTO. |
 | `Promise<T>` | Représente une opération asynchrone qui retournera une valeur de type T. Utilisé avec `async/await`. |
 | `Bottom sheet` | Pattern mobile : panneau glissant depuis le bas de l'écran. Utilisé pour le panneau d'actions IA. |
 | `Blob` | Objet représentant des données binaires en mémoire. Utilisé pour l'export de fichiers côté client. |
@@ -931,16 +898,19 @@ it('should debounce', () => {
 | `Hoisting` | Mécanisme npm workspaces qui remonte les dépendances partagées dans le `node_modules/` racine. Si `client` et `api` utilisent tous les deux `typescript`, il n'est installé qu'une seule fois. |
 | `Fake timers` | Technique de test qui remplace `Date`, `setTimeout`, `setInterval` par des implémentations contrôlables. `vi.useFakeTimers()` active le mode, `vi.advanceTimersByTime(ms)` avance le temps. Indispensable pour tester du code asynchrone de façon déterministe. |
 | `vi.fn()` | Crée une fonction mock dans Vitest. `.toHaveBeenCalledWith()` vérifie les arguments, `.toHaveBeenCalledTimes()` le nombre d'appels, `.mockClear()` remet les compteurs à zéro. |
-| `Factory function (test)` | Fonction utilitaire qui crée des objets de test avec des valeurs par défaut. `buildArticle({ title: 'Custom' })` crée un Article complet en ne spécifiant que ce qui change. Pattern `Partial<T>` + spread. |
+| `Factory function (test)` | Fonction utilitaire qui crée des objets de test avec des valeurs par défaut. `buildArticle({ title: 'Custom' })` ou `buildResponse({ provider: 'mistral' })` — pattern `Partial<T>` + spread. |
 | `Zoneless` | Mode Angular 21 par défaut où Zone.js n'est plus chargé. Les utilitaires historiques (`fakeAsync`, `tick`) ne fonctionnent plus — remplacés par les fake timers natifs de Vitest. |
 | `Fastify` | Framework HTTP pour Node.js, léger et performant. Utilise un système de plugins pour organiser les routes. Chaque plugin est une fonction async qui reçoit l'instance Fastify. Alternative moderne à Express. |
 | `ESM (ECMAScript Modules)` | Système de modules standard de JavaScript (`import`/`export`). Activé par `"type": "module"` dans `package.json`. Les imports doivent inclure l'extension `.js`. Remplace CommonJS (`require`/`module.exports`). |
 | `CommonJS (CJS)` | Ancien système de modules Node.js (`require()`/`module.exports`). Encore présent dans beaucoup de packages npm mais progressivement remplacé par ESM. |
 | `CORS` | Cross-Origin Resource Sharing — protection du navigateur qui bloque les requêtes vers un domaine/port différent de celui de la page. Résolu en dev par le proxy Angular, en prod par un même domaine ou des headers CORS. |
 | `Proxy (dev)` | Mécanisme de `ng serve` qui redirige certaines URLs vers un autre serveur. `proxy.conf.json` redirige `/api/*` vers Fastify (port 3000). N'existe qu'en dev — jamais déployé en production. |
-| `DTO (Data Transfer Object)` | Interface TypeScript qui définit la forme des données échangées entre couches (service → route → client). N'a pas de logique, uniquement des propriétés typées. Le DTO est un contrat fidèle à la réponse API ; le modèle métier frontend est adapté aux besoins de l'UI. |
+| `DTO (Data Transfer Object)` | Interface TypeScript qui définit la forme des données échangées entre couches (service → route → client). N'a pas de logique, uniquement des propriétés typées. Le DTO est un contrat fidèle à la réponse API ; le modèle métier frontend est adapté aux besoins de l'UI. Les noms de champs peuvent différer entre DTO et modèle — le mapping traduit entre les deux. |
+| `Mapping bidirectionnel` | Traduction dans les deux sens entre les types frontend et les types backend. Exemple : `ContentType 'linkedin-post'` (frontend) ↔ `AiContentType 'linkedin'` (backend). Nécessaire car chaque système définit ses propres conventions de nommage. |
 | `HttpClient` | Service Angular pour les requêtes HTTP. Retourne des Observables. Activé via `provideHttpClient()` dans `app.config.ts`. |
+| `HttpErrorResponse` | Classe Angular qui encapsule les erreurs HTTP. Permet de détecter le code de statut (`error.status`) et de mapper vers des messages utilisateur. |
 | `firstValueFrom()` | Fonction RxJS qui prend la première valeur d'un Observable et la retourne comme Promise. Utile pour convertir un appel `HttpClient` en `async/await`. L'Observable doit émettre au moins une valeur (sinon erreur). |
+| `throwError()` | Fonction RxJS qui crée un Observable qui émet immédiatement une erreur. Utilisée dans les tests pour simuler des erreurs HTTP sans réseau. |
 | `Promise.allSettled()` | Attend que toutes les promesses se terminent (succès ou échec). Contrairement à `Promise.all()`, ne rejette pas au premier échec — retourne le résultat individuel de chaque promesse. Utilisé pour la tolérance aux pannes partielles (batch RSS). |
 | `Strategy Pattern` | Design pattern qui définit une famille d'algorithmes interchangeables via une interface commune. Une factory sélectionne l'implémentation à runtime. Dans le projet : `AiProvider` (interface) + `MockAiProvider` / `MistralAiProvider` (implémentations) + factory dans `AiService`. |
 | `Provider (IA)` | Implémentation concrète de l'interface `AiProvider`. Chaque provider encapsule l'appel à une API spécifique (Mistral, Claude, mock). Le code appelant ne connaît que l'interface. |

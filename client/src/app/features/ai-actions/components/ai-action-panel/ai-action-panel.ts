@@ -70,6 +70,7 @@ export class AiActionPanelComponent {
   async onGenerate(): Promise<void> {
     if (this.isGenerating()) return;
     this.errorMessage.set(null);
+    this.startLoadingMessages();
 
     try {
       const content = await this.aiService.generate(
@@ -80,10 +81,40 @@ export class AiActionPanelComponent {
       this.generatedResult.set(content);
       this.generated.emit(content);
     } catch (error) {
+      // Use the service's detailed error message (mapped from HTTP status)
+      // Fallback to generic message if service didn't set one
+      const serviceError = this.aiService.generateError();
       this.errorMessage.set(
-        'Une erreur est survenue lors de la génération. Veuillez réessayer.'
+        serviceError ?? 'Une erreur inattendue est survenue. Veuillez réessayer.'
       );
       console.error('AI generation failed:', error);
+    } finally {
+      this.stopLoadingMessages();
+    }
+  }
+
+  /** Dynamic loading messages — rotates every 5s during generation */
+  private readonly loadingMessages = [
+    'Analyse des articles en cours...',
+    'Rédaction du contenu...',
+    'Finalisation...',
+  ];
+  readonly currentLoadingMessage = signal(this.loadingMessages[0]);
+  private messageInterval: ReturnType<typeof setInterval> | null = null;
+
+  private startLoadingMessages(): void {
+    let index = 0;
+    this.currentLoadingMessage.set(this.loadingMessages[0]);
+    this.messageInterval = setInterval(() => {
+      index = Math.min(index + 1, this.loadingMessages.length - 1);
+      this.currentLoadingMessage.set(this.loadingMessages[index]);
+    }, 5000);
+  }
+
+  private stopLoadingMessages(): void {
+    if (this.messageInterval) {
+      clearInterval(this.messageInterval);
+      this.messageInterval = null;
     }
   }
 

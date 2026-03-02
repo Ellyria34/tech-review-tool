@@ -82,32 +82,44 @@
           }
         </div>
 
-        <!-- Error message -->
+        <!-- Error message with retry -->
         @if (errorMessage()) {
           <div
-            class="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-2"
+            class="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-3"
             role="alert"
           >
-            {{ errorMessage() }}
+            <p>⚠️ {{ errorMessage() }}</p>
+            <button
+              (click)="onGenerate()"
+              class="mt-1 text-red-700 underline hover:no-underline"
+              aria-label="Réessayer la génération"
+            >
+              Réessayer
+            </button>
           </div>
         }
 
-        <!-- Generate button -->
-        <button
-          class="generate-btn"
-          (click)="onGenerate()"
-          [disabled]="isGenerating()"
-          [attr.aria-busy]="isGenerating()"
-        >
-          @if (isGenerating()) {
-            <span class="flex items-center justify-center gap-2">
-              <span class="animate-spin" aria-hidden="true">⏳</span>
-              Génération en cours...
-            </span>
-          } @else {
+        <!-- Loading state with dynamic messages -->
+        @if (isGenerating()) {
+          <div class="flex flex-col items-center gap-2 py-4" role="status">
+            <div class="animate-spin h-6 w-6 border-2 border-teal-500 border-t-transparent rounded-full"
+                 aria-hidden="true"></div>
+            <p class="text-sm text-gray-600" aria-live="polite">
+              {{ currentLoadingMessage() }}
+            </p>
+          </div>
+        }
+
+        <!-- Generate button (hidden during generation) -->
+        @if (!isGenerating()) {
+          <button
+            class="generate-btn"
+            (click)="onGenerate()"
+            [attr.aria-busy]="isGenerating()"
+          >
             Générer
-          }
-        </button>
+          </button>
+        }
 
         <!-- Generated result (shown inside the panel) -->
         @if (generatedResult()) {

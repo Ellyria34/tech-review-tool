@@ -3,7 +3,7 @@ import type { AiGenerateRequest } from '../models/ai.model.js';
 import { generateContent } from '../services/ai.service.js';
 
 const VALID_TYPES = ['synthesis', 'press-review', 'linkedin'] as const;
-const MAX_ARTICLES = 10;
+const MAX_ARTICLES = 15;
 
 /**
  * AI generation routes — Fastify plugin.

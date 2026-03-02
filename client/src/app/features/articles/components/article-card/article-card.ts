@@ -11,6 +11,7 @@ import { getCategoryColor, getCategoryIcon } from '../../../../shared/data/categ
 export class ArticleCard {
   article = input.required<Article>();
   selected = input<boolean>(false);
+  selectionDisabled = input<boolean>(false);
   toggleSelect = output<string>();
 
   getCategoryColor = getCategoryColor;
@@ -33,7 +34,8 @@ export class ArticleCard {
   }
 
   onToggle(): void {
-    this.toggleSelect.emit(this.article().id);
+    if (this.selectionDisabled()) return;
+    this.toggleSelect.emit(this.article().id);  
   }
 
   onOpenArticle(event: Event): void {

@@ -1,12 +1,20 @@
-import { Injectable, signal, computed } from '@angular/core';
-import { GeneratedContent, ContentType, Article } from '../../../shared/models';
+import { inject, Injectable, signal, computed } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import type { GeneratedContent, ContentType, Article, AiContentType } from '../../../shared/models';
+import type { AiGenerateRequestDto, AiGenerateResponseDto } from '../../../shared/models';
 import { loadFromStorage, saveToStorage } from '../../../core/services/storage.helper';
+import { AiApiService } from '../../../core/services/ai-api.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class AiService {
   private readonly STORAGE_KEY = 'trt-generated-contents'
+  
+  // HTTP client for backend AI API
+  private readonly aiApiService = inject(AiApiService);
+  private readonly _generateError = signal<string | null>(null);
 
   // Private signals (only the service can mutate)
   private readonly _generatedContents = signal<GeneratedContent[]>(
@@ -15,14 +23,17 @@ export class AiService {
   private readonly _isGenerating = signal(false);
   private readonly _lastGenerated = signal<GeneratedContent | null>(null);
   private readonly _currentProjectId = signal<string | null>(null);
-
+  
   //Public readonly access
-
+  
   /** Whether a generation is currently in progress. */
   readonly isGenerating = this._isGenerating.asReadonly();
-
+  
   /** The last generated content (displayed in the panel after generation). */
   readonly lastGenerated = this._lastGenerated.asReadonly();
+  
+  /** Error message from the last failed generation attempt. */
+  readonly generateError = this._generateError.asReadonly();
 
   /** All generated contents for the current project, newest first. */
   readonly projectContents = computed(() => {
@@ -46,36 +57,40 @@ export class AiService {
   }
 
   /**
-   * Generate AI content from selected articles.
-   * Currently uses mock generation with a simulated delay.
-   * The generateMockContent() method is the ONLY thing to replace
-   * when switching to a real AI API.
+   * Generate AI content from selected articles via the backend API.
+   * Replaces the former mock generation (step 5) with a real HTTP call.
+   *
+   * Flow: build DTO → POST /api/ai/generate → map response → store
+   * Same async pattern as ArticleService.fetchArticlesForProject()
    */
   async generate(
-      type: ContentType, 
-      articles : Article[], 
-      projectId: string
-    ): Promise<GeneratedContent> {
+    type: ContentType,
+    articles: Article[],
+    projectId: string
+  ): Promise<GeneratedContent> {
     this._isGenerating.set(true);
     this._lastGenerated.set(null);
-    try{
-      // Simulate API delay (300-800ms)
-      await this.simulateDelay(300, 800);
-      const content : GeneratedContent = {
-        id: crypto.randomUUID(),
-        projectId,
-        type,
-        articleIds : articles.map((a) => a.id),
-        content: this.generateMockContent(type, articles),
-        createdAt : new Date().toISOString(),
-      };
-        
-      // Immutable update (same pattern as all other services)
+    this._generateError.set(null);
+    try {
+      // 1. Build the request DTO from frontend models
+      const request = this.buildRequest(type, articles);
+
+      // 2. Call the backend (Observable → Promise via firstValueFrom)
+      const response = await firstValueFrom(this.aiApiService.generate(request));
+
+      // 3. Map the response DTO to the frontend model
+      const content = this.mapResponseToContent(response, articles, projectId);
+
+      // 4. Store in signal + localStorage (same pattern as before)
       this._generatedContents.update((contents) => [...contents, content]);
       this._lastGenerated.set(content);
-      saveToStorage(this.STORAGE_KEY,this._generatedContents());
-        
+      saveToStorage(this.STORAGE_KEY, this._generatedContents());
+
       return content;
+    } catch (error: unknown) {
+      const message = this.extractErrorMessage(error);
+      this._generateError.set(message);
+      throw error; // Re-throw so the component can handle it too
     } finally {
       this._isGenerating.set(false);
     }
@@ -99,103 +114,97 @@ export class AiService {
 
    // Private helpers
 
-    /** Simulate network latency for mock generation. */
-    private simulateDelay(minMs: number, maxMs: number) : Promise<void> {
-      const delay = Math.floor(Math.random()* (maxMs - minMs + 1)) + minMs;
-      return new Promise((resolve) => setTimeout(resolve,delay));
-    }
+   // Private helpers
 
-    /**
-   * Generate mock content based on the type and articles.
-   * This is the ONLY method to replace when switching to a real AI API.
+  /**
+   * Build the backend request DTO from frontend models.
+   * Maps Article fields to AiArticleInputDto fields.
    */
-  private generateMockContent(type: ContentType, articles: Article[]): string {
-    const titles = articles.map((a) => a.title);
-    const sources = [...new Set(articles.map((a) => a.sourceName))];
+  private buildRequest(
+    type: ContentType,
+    articles: Article[]
+  ): AiGenerateRequestDto {
+    return {
+      type: this.mapContentTypeToApi(type),
+      articles: articles.map((a) => ({
+        title: a.title,
+        url: a.url,
+        source: a.sourceName,
+        summary: a.summary || undefined,
+        publishedAt: a.publishedAt || undefined,
+      })),
+    };
+  }
 
-    switch (type) {
-      case 'synthesis':
-        return this.generateMockSynthesis(articles, titles, sources);
-      case 'press-review':
-        return this.generateMockPressReview(articles, titles, sources);
-      case 'linkedin-post':
-        return this.generateMockLinkedInPost(titles, sources);
+  /**
+   * Map frontend ContentType to the backend API type value.
+   * The frontend uses 'linkedin-post', the backend expects 'linkedin'.
+   * This is the DTO layer's job — translate between the two contracts.
+   */
+    private mapContentTypeToApi(type: ContentType): AiContentType {
+    const mapping: Record<ContentType, AiContentType> = {
+      'synthesis': 'synthesis',
+      'press-review': 'press-review',
+      'linkedin-post': 'linkedin',
+    };
+    return mapping[type];
+  }
+
+  /**
+   * Reverse mapping: backend API type → frontend ContentType.
+   * The backend returns 'linkedin', the frontend uses 'linkedin-post'.
+   */
+  private mapApiTypeToContentType(apiType: AiContentType): ContentType {
+    const mapping: Record<AiContentType, ContentType> = {
+      'synthesis': 'synthesis',
+      'press-review': 'press-review',
+      'linkedin': 'linkedin-post',
+    };
+    return mapping[apiType];
+  }
+  
+  /**
+   * Map the backend response DTO to the frontend GeneratedContent model.
+   * Adds frontend-specific fields not present in the API response:
+   * id (client-side UUID), projectId, articleIds.
+   */
+  private mapResponseToContent(
+    response: AiGenerateResponseDto,
+    articles: Article[],
+    projectId: string
+  ): GeneratedContent {
+    return {
+      id: crypto.randomUUID(),
+      projectId,
+      type: this.mapApiTypeToContentType(response.type),
+      articleIds: articles.map((a) => a.id),
+      content: response.content,
+      createdAt: response.generatedAt,
+      provider: response.provider,
+    };
+  }
+
+  /**
+   * Extract a user-friendly error message from an HTTP error.
+   * Maps technical HTTP status codes to French messages for the UI.
+   */
+  private extractErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      switch (error.status) {
+        case 400:
+          return 'Requête invalide — vérifiez la sélection d\'articles.';
+        case 429:
+          return 'Limite de requêtes atteinte — réessayez dans quelques minutes.';
+        case 500:
+          return 'Erreur du serveur IA — le provider est peut-être indisponible.';
+        case 503:
+          return 'Service IA temporairement indisponible.';
+        case 0:
+          return 'Impossible de joindre le serveur — vérifiez que le backend est démarré.';
+        default:
+          return `Erreur inattendue (${error.status}).`;
+      }
     }
-  }
-
-  private generateMockSynthesis(
-    articles: Article[],
-    titles: string[],
-    sources: string[]
-  ): string {
-    return [
-      `## Synthèse — ${titles.length} articles analysés`,
-      '',
-      `**Sources** : ${sources.join(', ')}`,
-      '',
-      '### Points clés',
-      '',
-      ...articles.map(
-        (a, i) =>
-          `${i + 1}. **${a.title}**\n` +
-          `   ${a.summary || 'Point clé extrait de cet article.'}\n` +
-          `   🔗 [Lire l'article original](${a.url})`
-      ),
-      '',
-      '### Analyse transversale',
-      '',
-      'Les articles sélectionnés convergent sur plusieurs tendances majeures. ' +
-        "L'évolution rapide du domaine nécessite une veille constante. " +
-        'Les implications pour les équipes techniques sont significatives.',
-      '',
-      `*Synthèse générée le ${new Date().toLocaleDateString('fr-FR')} à partir de ${titles.length} articles.*`,
-    ].join('\n');
-  }
-
-  private generateMockPressReview(
-    articles: Article[],
-    titles: string[],
-    sources: string[]
-  ): string {
-    return [
-      `# 📰 Revue de presse — ${new Date().toLocaleDateString('fr-FR')}`,
-      '',
-      `> ${titles.length} articles de ${sources.length} source(s) : ${sources.join(', ')}`,
-      '',
-      '---',
-      '',
-      ...articles.map(
-        (a) =>
-          `### ${a.title}\n\n` +
-          `**${a.sourceName}** — ${new Date(a.publishedAt).toLocaleDateString('fr-FR')}\n\n` +
-          `${a.summary || "Cet article aborde un sujet d'actualité technologique avec des implications importantes pour les professionnels du secteur."}\n`
-      ),
-      '---',
-      '',
-      '*Revue de presse générée automatiquement. Consultez les articles originaux pour le détail.*',
-    ].join('\n');
-  }
-
-  private generateMockLinkedInPost(
-    titles: string[],
-    sources: string[]
-  ): string {
-    const hashtags = sources.map(
-      (s) => `#${s.replace(/[^a-zA-Z0-9]/g, '')}`
-    );
-    return [
-      "🔍 Veille tech du jour — Ce que j'ai retenu",
-      '',
-      `J'ai analysé ${titles.length} articles récents et voici les points qui m'ont marqué :`,
-      '',
-      ...titles.map((t) => `→ ${t}`),
-      '',
-      "Ce qui ressort : le rythme d'innovation s'accélère et les impacts " +
-        'sur nos pratiques de développement sont concrets.',
-      '',
-      '💬 Et vous, quelles tendances suivez-vous en ce moment ?',
-      '',
-      `${hashtags.join(' ')} #VeilleTech #Dev`,
-    ].join('\n');
+    return 'Une erreur inattendue s\'est produite.';
   }
 }

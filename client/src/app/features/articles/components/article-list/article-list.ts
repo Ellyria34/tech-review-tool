@@ -1,5 +1,5 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
-import { ArticleService } from '../../services/article.service';
+import { ArticleService, MAX_ARTICLE_SELECTION } from '../../services/article.service';
 import { ArticleCard } from "../article-card/article-card";
 import { ArticleFiltersComponent } from "../article-filters/article-filters";
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -19,6 +19,8 @@ import { AiService } from '../../../ai-actions/services/ai.service';
   styleUrl: './article-list.scss',
 })
 export class ArticleListComponent implements OnInit{
+  readonly maxSelection = MAX_ARTICLE_SELECTION;
+
   private readonly route = inject(ActivatedRoute);
   private readonly articleService = inject(ArticleService);
   private readonly aiService = inject(AiService);
@@ -33,6 +35,7 @@ export class ArticleListComponent implements OnInit{
   readonly selectedArticles = this.articleService.selectedArticles;
   readonly isLoading = this.articleService.isLoading;
   readonly fetchError = this.articleService.fetchError;
+  readonly isSelectionFull = this.articleService.isSelectionFull;
   
   ngOnInit(): void {
     this.projectId = this.route.snapshot.paramMap.get('id') ?? '';

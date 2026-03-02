@@ -6,6 +6,9 @@ import { MOCK_ARTICLE_TEMPLATES } from '../../../shared/data/mock-articles';
 import { loadFromStorage, saveToStorage } from '../../../core/services/storage.helper';
 import { firstValueFrom } from 'rxjs';
 
+/** Maximum number of articles that can be selected for AI generation */
+export const MAX_ARTICLE_SELECTION = 15;
+
 @Injectable({
   providedIn: 'root',
 })
@@ -79,6 +82,9 @@ export class ArticleService {
   readonly filteredCount = computed(() => this.filteredArticles().length);
   readonly totalCount = computed(() => this.projectArticles().length);
   readonly selectedCount = computed(() => this.selectedIds().size);
+  readonly isSelectionFull = computed(
+    () => this.selectedCount() >= MAX_ARTICLE_SELECTION
+  );
   //Selected article objects (ready for AI actions)
   readonly selectedArticles = computed(() => {
     const ids = this._selectedIds();
@@ -111,10 +117,10 @@ export class ArticleService {
   toggleSelection(articleId: string): void {
     this._selectedIds.update((ids) => {
       const next = new Set(ids);
-      if (next.has(articleId)){
-        next.delete(articleId);
-      } else {
-        next.add(articleId);
+      if (next.has(articleId)) {
+        next.delete(articleId); // Deselect always allowed
+      } else if (next.size < MAX_ARTICLE_SELECTION) {
+        next.add(articleId); // Select only if under the limit
       }
       return next;
     });
@@ -125,8 +131,9 @@ export class ArticleService {
   }
 
   selectAll(): void {
-    const allIds = new Set(this.filteredArticles().map((a) => a.id));
-    this._selectedIds.set(allIds);
+    const articles = this.filteredArticles();
+    const capped = articles.slice(0, MAX_ARTICLE_SELECTION);
+    this._selectedIds.set(new Set(capped.map((a) => a.id)));
   }
 
   clearSelection(): void {

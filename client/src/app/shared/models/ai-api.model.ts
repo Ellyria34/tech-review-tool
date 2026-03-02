@@ -9,7 +9,7 @@
  */
 
 /** Content generation types supported by the backend */
-export type AiContentType = 'synthesis' | 'press-review' | 'linkedin-post';
+export type AiContentType = 'synthesis' | 'press-review' | 'linkedin';
 
 /** Article data sent to the backend for AI generation */
 export interface AiArticleInputDto {

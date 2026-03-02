@@ -55,7 +55,7 @@
     @if (selectedCount() > 0) {
       <div class="flex items-center justify-between bg-teal-50 border border-teal-200 rounded-lg px-4 py-2.5 sticky top-14 z-10">
         <span class="text-sm text-teal-700 font-medium">
-          {{ selectedCount() }} article(s) sélectionné(s)
+          {{ selectedCount() }}/{{ maxSelection }} article(s) sélectionné(s)
         </span>
         <div class="flex items-center gap-2">
           <button
@@ -73,6 +73,13 @@
             ✕
           </button>
         </div>
+      </div>
+    }
+
+    @if (isSelectionFull()) {
+      <div class="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
+           role="status">
+        ⚠️ Limite de {{ maxSelection }} articles atteinte pour la génération IA.
       </div>
     }
 
@@ -116,6 +123,7 @@
           <app-article-card
             [article]="article"
             [selected]="isSelected(article.id)"
+            [selectionDisabled]="isSelectionFull() && !isSelected(article.id)"
             (toggleSelect)="onToggleSelect($event)"
           />
         }

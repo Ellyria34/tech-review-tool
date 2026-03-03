@@ -12,5 +12,9 @@
     "client:test": "npm run test --workspace=client",
     "client:build": "npm run build --workspace=client",
     "client:lint": "npm run lint --workspace=client"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^25.3.3"
   }
 }

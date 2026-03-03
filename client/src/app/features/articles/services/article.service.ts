@@ -2,7 +2,6 @@ import { Injectable, inject, signal, computed } from '@angular/core';
 import { SourceService } from '../../sources/services/source.service';
 import { RssApiService } from '../../../core/services/rss-api.service';
 import { Article, ArticleFilters, TimeWindow, DEFAULT_FILTERS, FeedResult } from '../../../shared/models';
-import { MOCK_ARTICLE_TEMPLATES } from '../../../shared/data/mock-articles';
 import { loadFromStorage, saveToStorage } from '../../../core/services/storage.helper';
 import { firstValueFrom } from 'rxjs';
 
@@ -157,21 +156,7 @@ export class ArticleService {
   }
 
 /**
- * @deprecated Use fetchArticlesForProject() instead.
- * Kept as fallback during development — will be removed at Step 13.
- */  loadMockArticles(projectId: string): void {
-    const linkedSources = this.sourceService.getByProject(projectId)();
-    const activeSources = linkedSources.filter((s) => s.isActive);
-
-    if (activeSources.length === 0) return;
-
-    const mockArticles = this.generateMockArticles(projectId, activeSources);
-    this.addArticles(mockArticles);
-  }
-
-/**
  * Fetch real articles from backend for all active sources of a project.
- * Replaces the former loadMockArticles() method.
  */
 async fetchArticlesForProject(projectId: string): Promise<void> {
   this._isLoading.set(true);
@@ -274,40 +259,4 @@ private mapFeedResultsToArticles(
   private saveToStorage(): void {
       saveToStorage(this.STORAGE_KEY, this._articles());
   }
-    
-  private generateMockArticles(
-  projectId: string,
-  sources: { id: string; name: string; category: string }[]
-): Article[] {
-  const templates = MOCK_ARTICLE_TEMPLATES;
-  const articles: Article[] = [];
-  const now = Date.now();
-
-  sources.forEach((source) => {
-    const catTemplates = templates[source.category] || templates['general'];
-    const sourcesInCategory = sources.filter(s => s.category === source.category);
-    const rankInCategory = sourcesInCategory.indexOf(source);
-    const totalInCategory = sourcesInCategory.length;
-
-    catTemplates
-      .filter((_, i) => i % totalInCategory === rankInCategory)
-      .forEach((template, index) => {
-        const hoursOffsets = [1, 4, 10, 20, 36, 72, 140];
-        const hoursAgo = hoursOffsets[index % hoursOffsets.length];
-        articles.push({
-          id: crypto.randomUUID(),
-          projectId,
-          sourceId: source.id,
-          title: template.title,
-          url: `https://example.com/article-${source.id}-${index}`,
-          summary: template.summary,
-          publishedAt: new Date(now - hoursAgo * 3600000).toISOString(),
-          sourceName: source.name,
-          sourceCategory: source.category as Article['sourceCategory'],
-        });
-      });
-  });
-
-  return articles;
-}
 }

@@ -47,7 +47,6 @@ export class AiActionPanelComponent {
 
   /** Select a content type (radio button behavior). */
   selectType(type: ContentType): void {
-    console.log('selectType called with:', type);
     this.selectedType.set(type);
     this.errorMessage.set(null);
   }

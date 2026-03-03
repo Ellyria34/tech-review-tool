@@ -40,6 +40,7 @@ export async function generateContent(
   articles: AiArticleInput[],
   projectName?: string
 ): Promise<AiGenerateResponse> {
+  // TODO: Replace console.log with a structured logger (e.g. pino) for production monitoring
   console.log(`[AI] Generating "${type}" with provider "${provider.name}" (${articles.length} articles)`);
 
   const content = await provider.generate(type, articles, projectName);

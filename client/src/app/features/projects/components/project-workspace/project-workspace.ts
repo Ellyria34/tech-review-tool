@@ -70,7 +70,7 @@ export class ProjectWorkspace{
   
   /** Navigate to edit form. */
   onEdit(): void {
-    this.router.navigate(['/projects', this.projectId, 'edit']);
+    this.router.navigate(['/projects', this.projectId(), 'edit']);
   }
 
   /** Delete project and go back to list. */

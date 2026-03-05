@@ -376,6 +376,17 @@ Each `computed()` auto-recalculates when its dependencies change — forming a r
 | **10.1** — Auto-detect RSS feed URL | User enters a website URL → backend fetches the HTML page → extracts `<link rel="alternate" type="application/rss+xml">` from `<head>` → returns the feed URL. Fallback error if no feed found. | Standalone |
 | **11.x** — Content enrichment | Fetch full article content via `mozilla/readability` before sending to AI. Snippet RSS is too short for LinkedIn/article generation. | Standalone |
 
+### Future Evolutions
+
+| Evolution | Description | Impact |
+|---|---|---|
+| **Data persistence** | Replace localStorage with SQLite (single file, no DB server) or PostgreSQL for multi-user. Add import/export JSON for migration. | Data survives browser cache clearing, shareable across devices |
+| **Authentication** | Add user accounts (JWT + refresh tokens) to support multi-user mode. Each user owns their projects and data. | Required for any cloud deployment |
+| **Enterprise-grade security** | Prompt injection sanitization, token cost monitoring per user, request logging with structured logger (pino), API key rotation | Production-ready for team usage |
+| **CI/CD pipeline** | GitHub Actions: lint → unit tests → E2E tests → `npm audit` → build → deploy. Block merge on failure. | Automated quality gate on every PR |
+| **Cloud deployment** | Docker containerization (multi-stage build), deploy to Render/Railway/VPS with environment-based configuration | Publicly accessible application |
+| **Additional AI providers** | Add Claude (Anthropic) and GPT (OpenAI) providers — architecture ready via Strategy Pattern, just add a new class | User choice + fallback if one provider is down |
+
 ## 📄 License
 
 This project is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) — you may share and adapt it for **non-commercial purposes only**, with attribution and under the same license.

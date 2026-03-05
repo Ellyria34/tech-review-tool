@@ -20,14 +20,15 @@ TechReviewTool is a web application that helps developers and tech professionals
 - ✅ **Real AI integration** — Frontend calls backend API, DTO mapping, error handling with retry
 - ✅ **Generation history** — Find, expand, copy and export past AI-generated content
 - ✅ **Responsive design** — Mobile-first with adaptive desktop layout (sidebar + contextual navigation)
-- ✅ **Tested** — 151 unit tests across 7 test files (services, pipes, components)
+- ✅ **Tested** — 151 unit tests (Vitest) + 19 E2E tests (Playwright) across 3 browsers
 - ✅ **Real RSS backend** — Fastify API fetching and parsing live RSS/Atom feeds
+- ✅ **Security** — Dependency auditing, Dependabot alerts, no hardcoded secrets
 
 ## 🛠️ Tech Stack
 
 | Technology | Version | Purpose |
 |---|---|---|
-| Angular | 21.1.4 (Active) | Frontend framework |
+| Angular | 21.2.0 (Active) | Frontend framework |
 | Fastify | 5.x | Backend HTTP framework (TypeScript) |
 | TypeScript | 5.8+ (client) / 5.9+ (api) | Type-safe JavaScript |
 | Mistral AI API | mistral-small-latest | AI content generation (synthesis, press review, LinkedIn) |
@@ -37,6 +38,7 @@ TechReviewTool is a web application that helps developers and tech professionals
 | Node.js | 22.22.0 (Maintenance LTS) | JavaScript runtime |
 | npm | 10.9.4 (bundled) | Package manager + workspaces |
 | Vitest | 4.x (bundled with Angular 21) | Unit testing framework |
+| Playwright | latest | End-to-end testing (Chromium, Firefox, Mobile Chrome) |
 
 ## 📁 Project Structure
 
@@ -87,9 +89,8 @@ tech-review-tool/                      ← Monorepo root (npm workspaces)
 │   │   │   │       └── services/
 │   │   │   │           └── source.service.ts   # Catalog + liaisons + localStorage
 │   │   │   ├── shared/
-│   │   │   │   ├── data/                       # Centralized app data
-│   │   │   │   │   ├── categories.ts           # Category labels, icons, colors
-│   │   │   │   │   └── mock-articles.ts        # Mock article templates (dev only)
+│   │   │   │   ├── data/
+│   │   │   │   │   └── categories.ts           # Category labels, icons, colors
 │   │   │   │   ├── models/                     # TypeScript interfaces
 │   │   │   │   │   ├── ai-api.model.ts         # Backend AI DTOs (AiGenerateRequestDto, ResponseDto)
 │   │   │   │   │   ├── article.model.ts        # Article, ArticleFilters, TimeWindow
@@ -110,15 +111,10 @@ tech-review-tool/                      ← Monorepo root (npm workspaces)
 │   │   ├── main.ts
 │   │   ├── styles.scss                         # Global styles
 │   │   └── tailwind.css                        # Tailwind CSS entry point
-│   ├── .postcssrc.json
-│   ├── .prettierrc
 │   ├── angular.json
-│   ├── eslint.config.js
 │   ├── package.json                            # Angular dependencies
 │   ├── proxy.conf.json                         # Dev proxy: /api/* → Fastify (localhost:3000)
-│   ├── tsconfig.json
-│   ├── tsconfig.app.json
-│   └── tsconfig.spec.json
+│   └── tsconfig.json
 ├── api/                                        ← Fastify backend (TypeScript)
 │   ├── src/
 │   │   ├── models/
@@ -136,69 +132,60 @@ tech-review-tool/                      ← Monorepo root (npm workspaces)
 │   │   └── server.ts                           # Fastify server entry point
 │   ├── .env.example                            # Environment variables template (committed)
 │   ├── package.json                            # Fastify + feed-parser dependencies
-│   └── tsconfig.json                           # Strict TypeScript config (NodeNext)
-├── docs/
-│   └── ARCHITECTURE_ET_METHODOLOGIE.md         # Architecture decisions (FR)
-├── .editorconfig
-├── .gitattributes
-├── .gitignore
-├── .vscode/                                    # VS Code workspace settings
-├── LICENSE                                     # CC BY-NC-SA 4.0 (non-commercial)
+│   └── tsconfig.json                           # TypeScript strict config (NodeNext)
+├── e2e/                                        ← Playwright E2E tests
+│   ├── smoke.spec.ts                           # App shell, responsive navigation, empty state
+│   ├── projects.spec.ts                        # Project CRUD lifecycle
+│   ├── sources.spec.ts                         # Source management (add, toggle, delete)
+│   ├── articles.spec.ts                        # Article loading, filters, selection
+│   └── generation.spec.ts                      # AI content generation (synthesis, press review, LinkedIn)
+├── playwright.config.ts                        # E2E config (webServer, browsers, timeouts)
 ├── package.json                                # Workspace root (npm workspaces)
-├── package-lock.json                           # Locked versions (all workspaces)
-└── README.md                                   # This file
+├── package-lock.json                           # Lock file for all workspaces
+└── README.md
 ```
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) >= 22.12.0 (LTS recommended)
-- npm >= 10.x (bundled with Node.js)
-- [Angular CLI](https://angular.dev/cli) 21.x
+- Node.js 22.x (LTS)
+- npm 10.x (bundled with Node.js)
 
 ### Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/Ellyria34/tech-review-tool.git
 cd tech-review-tool
-
-# Install all workspaces (client + api)
 npm install
-
-# Configure environment (copy and edit with your API keys)
-cp api/.env.example api/.env
 ```
 
-### Running in Development
-
-Start both servers in separate terminals:
+### Running the application
 
 ```bash
-# Terminal 1 — Backend (Fastify on port 3000)
+# Terminal 1 — Start the backend API
 cd api
-npm run dev
+cp .env.example .env        # Then edit .env with your API keys
+npm run dev                  # Fastify on http://localhost:3000
 
-# Terminal 2 — Frontend (Angular on port 4200)
+# Terminal 2 — Start the frontend
 cd client
-ng serve
+ng serve                     # Angular on http://localhost:4200
 ```
 
-Open [http://localhost:4200](http://localhost:4200) in your browser. The Angular dev server proxies `/api/*` requests to Fastify automatically.
+### Available Commands
 
-### Available Scripts
-
-| Command | Location | Description |
+| Command | Directory | Description |
 |---|---|---|
-| `npm run dev` | `api/` | Start Fastify server with hot reload (tsx watch) |
-| `ng serve` | `client/` | Start Angular dev server with proxy to backend |
+| `npm run dev` | `api/` | Start Fastify dev server (tsx watch) |
+| `ng serve` | `client/` | Start Angular dev server with proxy |
 | `ng build` | `client/` | Build for production |
 | `ng test` | `client/` | Run unit tests (151 tests) |
 | `ng test --watch=false` | `client/` | Run tests once (CI mode) |
+| `npx playwright test` | root | Run all E2E tests (19 tests, 3 browsers) |
+| `npx playwright test --project=chromium` | root | Run E2E tests on Chromium only |
+| `npx playwright show-report` | root | Open last E2E test report |
 | `ng lint` | `client/` | Run ESLint code quality checks |
-| `npx prettier --check src/` | `client/` | Check code formatting |
-| `npx prettier --write src/` | `client/` | Auto-fix code formatting |
 
 > **Note**: Commands must be run from the respective workspace directory. Dependencies are installed once at root level via npm workspaces.
 
@@ -210,6 +197,25 @@ Open [http://localhost:4200](http://localhost:4200) in your browser. The Angular
 | `GET` | `/api/rss/fetch?url=<feed_url>` | Fetch and parse an RSS/Atom feed |
 | `POST` | `/api/rss/fetch-multiple` | Batch fetch multiple RSS feeds (body: { urls: string[] }, max 20) |
 | `POST` | `/api/ai/generate` | Generate AI content (body: { type, articles, projectName? }, max 15 articles) |
+
+## 🧪 Testing
+
+### Test Pyramid
+
+| Layer | Tool | Tests | What it covers |
+|---|---|---|---|
+| Unit | Vitest | 151 | Services (4/4), pipes (1/1), components with logic (2) |
+| E2E | Playwright | 19 | Full user journeys across 3 browsers (Chromium, Firefox, Mobile Chrome) |
+
+### E2E Test Coverage
+
+| File | Tests | User journey |
+|---|---|---|
+| `smoke.spec.ts` | 3 | App loads, responsive navigation, empty state |
+| `projects.spec.ts` | 5 | Create, display, open workspace, edit, delete project |
+| `sources.spec.ts` | 5 | Empty state, add source, toggle on/off, delete with confirm, count |
+| `articles.spec.ts` | 4 | Load articles from RSS, keyword filter, reset filters, selection + AI panel |
+| `generation.spec.ts` | 3 | Generate synthesis, press review, LinkedIn post (mock provider) |
 
 ## 🏗️ Architecture
 
@@ -287,7 +293,8 @@ Each `computed()` auto-recalculates when its dependencies change — forming a r
 - **Mobile-first** — Responsive design starting from smallest screens
 - **Accessibility (a11y)** — WCAG 2.1 AA compliance (ARIA roles, keyboard navigation, screen readers)
 - **GDPR-friendly** — Local-first data, no unnecessary third-party tracking
-- **Security** — `noopener,noreferrer` on external links, API keys in `.env` (never committed)
+- **Security** — `noopener,noreferrer` on external links, API keys in `.env` (never committed), `npm audit`, Dependabot
+- **Test Pyramid** — Unit tests (Vitest) for logic, E2E tests (Playwright) for user journeys
 - **Conventional Commits** — Structured commit messages for readable history
 
 ## 📖 Documentation
@@ -295,6 +302,8 @@ Each `computed()` auto-recalculates when its dependencies change — forming a r
 | Document | Language | Description |
 |---|---|---|
 | [ARCHITECTURE_ET_METHODOLOGIE.md](./docs/ARCHITECTURE_ET_METHODOLOGIE.md) | 🇫🇷 French | Architecture decisions, methodology, SOLID principles |
+| [JOURNAL_DE_BORD.md](./JOURNAL_DE_BORD.md) | 🇫🇷 French | Development log Phase 1 (Steps 0-8) |
+| [JOURNAL_DE_BORD2.md](./JOURNAL_DE_BORD2.md) | 🇫🇷 French | Development log Phase 2 (Steps 9-13) |
 
 ## 🗺️ Roadmap
 
@@ -316,14 +325,14 @@ Each `computed()` auto-recalculates when its dependencies change — forming a r
 - [x] **Step 10** — Angular ↔ Backend RSS integration (replace mock articles)
 - [x] **Step 11** — Backend: AI endpoint with Strategy Pattern (Mistral + Mock)
 - [x] **Step 12** — Angular ↔ Backend AI integration (DTOs, error handling, selection limit, 151 tests)
-- [ ] **Step 13** — E2E tests (Playwright), security, GDPR, production build
+- [ ] **Step 13** — E2E tests (Playwright) ✅, security 🔄, GDPR, production build
 
 ### TODOs (deferred improvements)
 
 | TODO | Description | When |
 |---|---|---|
 | **3.5** — Source catalog reuse UI | Add a "📂 From catalog" button to link existing sources without recreating. Architecture ready (`getAvailableForProject()` exists). | Standalone |
-| **5.7** — Audit `theme()` in component SCSS | Tailwind `theme()` doesn't work in Angular component SCSS. Audit and replace with hex values. | Standalone |
+| ~~**5.7** — Audit `theme()` in component SCSS~~ | ~~Audit and replace with hex values.~~ Resolved at step 13.5 — no `theme()` found. | ✅ Done |
 | **6.7** — Dedicated generation page | Create a guided wizard instead of the current selection-first flow. | Standalone |
 | **10.1** — Auto-detect RSS feed URL | User enters a website URL → backend fetches the HTML page → extracts `<link rel="alternate" type="application/rss+xml">` from `<head>` → returns the feed URL. Fallback error if no feed found. | Standalone |
 | **11.x** — Content enrichment | Fetch full article content via `mozilla/readability` before sending to AI. Snippet RSS is too short for LinkedIn/article generation. | Standalone |

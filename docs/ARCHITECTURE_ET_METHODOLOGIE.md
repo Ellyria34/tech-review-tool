@@ -3,7 +3,7 @@
 > **Nom du projet** : TechReviewTool — Agrégateur intelligent de veille technologique
 > **Date de création** : 14 février 2026
 > **Auteur** : Ellyria34 - Sarah LLEON
-> **Statut** : Phase 1 (frontend) terminée ✅ — Phase 2 (backend) en cours — Step 12 terminé (Angular ↔ Backend IA)
+> **Statut** : Phase 1 (frontend) terminée ✅ — Phase 2 (backend) en cours — Step 13 en cours (E2E tests ✅, sécurité/RGPD en cours)
 
 ---
 
@@ -61,7 +61,7 @@ Chaque projet est isolé : ses propres sources, articles, et contenus générés
 
 | Technologie | Version | Justification |
 |---|---|---|
-| **Angular** | **21.1.4** (Active, support jusqu'en mai 2027) | Framework structuré avec TypeScript natif, injection de dépendances, Signals comme paradigme réactif. Structure forte et opinionated, idéal pour les applications d'entreprise. |
+| **Angular** | **21.2.0** (Active, support jusqu'en mai 2027) | Framework structuré avec TypeScript natif, injection de dépendances, Signals comme paradigme réactif. Structure forte et opinionated, idéal pour les applications d'entreprise. Mis à jour de 21.1.4 → 21.2.0 suite au correctif CVE XSS i18n (GHSA-prjf-86w9-mfqv). |
 | **TypeScript** | **5.8+** (embarqué avec Angular 21) | Typage statique fort qui sécurise le code et améliore l'autocomplétion. TypeScript EST le langage d'Angular, pas une option. |
 | **Tailwind CSS** | **4.x** | Framework CSS utility-first. Ne génère que les classes utilisées (tree-shaking). Disparaît en production. |
 | **SCSS** | — | CSS avec variables, nesting et mixins pour un code maintenable et un responsive mobile-first propre. |
@@ -218,6 +218,19 @@ Le SDK `@mistralai/mistralai` est disponible sur npm. On utilise `fetch` natif p
 - **SRP** — le provider ne dépend que de `fetch`, pas d'une abstraction tierce
 
 Un SDK devient utile quand l'API est complexe (streaming, retry automatique, pagination). Pour un simple POST → réponse JSON, `fetch` suffit.
+
+### 2.13 Pourquoi Playwright pour les tests E2E ?
+
+| Critère | Playwright | Cypress | Selenium |
+|---|---|---|---|
+| **Créé par** | Microsoft (2020) | Cypress.io (2017) | Selenium HQ (2004) |
+| **Navigateurs** | Chromium + Firefox + WebKit | Chromium + Firefox (WebKit expérimental) | Tous via WebDriver |
+| **Vitesse** | Très rapide (parallèle natif) | Moyen (séquentiel par défaut) | Lent |
+| **Auto-waiting** | Oui | Oui | Non |
+| **Multi-onglets** | Oui | Non | Limité |
+| **TypeScript** | Natif | Natif | Via config |
+
+**Choix : Playwright** — auto-waiting natif (pas de `sleep()`), multi-navigateurs, parallélisation, TypeScript natif, maintenance Microsoft. Installé à la racine du monorepo (les tests E2E testent l'application entière, pas un workspace).
 
 ---
 
@@ -537,7 +550,6 @@ export class ProjectService {
 ```
 
 **Exemples concrets dans le projet** :
-- Les données mock (`MOCK_ARTICLE_TEMPLATES`) sont séparées dans `shared/data/mock-articles.ts`, pas dans le service
 - `ArticleService` gère les articles et les filtres, `AiService` gère la génération IA — deux domaines distincts
 - `RssApiService` et `AiApiService` gèrent uniquement la communication HTTP — les services métier gèrent l'état, les filtres et le mapping DTO → modèle
 - Les opérations localStorage sont factorisées dans `storage.helper.ts`, pas dupliquées dans chaque service
@@ -597,7 +609,7 @@ tech-review-tool/                  ← Monorepo root (npm workspaces)
 │   │   │   │   ├── ai-actions/    # Génération IA (synthèse, revue de presse, LinkedIn)
 │   │   │   │   └── history/       # Historique des générations par projet
 │   │   │   └── shared/            # Composants réutilisables, pipes, directives, modèles
-│   │   │       ├── data/          # Données centralisées (catégories, mock articles)
+│   │   │       ├── data/          # Données centralisées (catégories)
 │   │   │       ├── models/        # Interfaces TypeScript
 │   │   │       │   ├── ai-api.model.ts        # DTOs backend IA (AiGenerateRequestDto, ResponseDto)
 │   │   │       │   ├── article.model.ts
@@ -625,6 +637,13 @@ tech-review-tool/                  ← Monorepo root (npm workspaces)
 │   ├── .env.example               # Template variables d'env (committé, sans secrets)
 │   ├── package.json               # Dépendances Fastify + feed-parser
 │   └── tsconfig.json              # Config TypeScript strict (NodeNext)
+├── e2e/                           ← Tests E2E Playwright
+│   ├── smoke.spec.ts                  # App Shell, navigation responsive, état vide
+│   ├── projects.spec.ts               # CRUD projet complet
+│   ├── sources.spec.ts                # Gestion des sources (ajout, toggle, suppression)
+│   ├── articles.spec.ts               # Chargement, filtres, sélection
+│   └── generation.spec.ts             # Génération IA (synthèse, revue, LinkedIn)
+├── playwright.config.ts           # Configuration E2E (navigateurs, serveurs, timeouts)
 ├── docs/
 │   └── ARCHITECTURE_ET_METHODOLOGIE.md
 ├── package.json                   # Workspace root (npm workspaces)
@@ -719,13 +738,14 @@ Pour un projet solo avec montée en compétence :
 | Pas de secrets côté client | Les clés API ne sont jamais dans le code source |
 | Clés API dans `.env` | Les secrets (`MISTRAL_API_KEY`) sont dans `.env` (non committé). Seul `.env.example` (template sans secrets) est versionné |
 | `--env-file` natif | Node.js 22 charge le `.env` nativement — pas de package `dotenv` (moins de surface d'attaque) |
-| Dépendances auditées | `npm audit` régulier pour détecter les vulnérabilités |
+| Dépendances auditées | `npm audit` régulier pour détecter les vulnérabilités. Dependabot activé sur GitHub pour les alertes automatiques |
 | Intégrité des paquets | `package-lock.json` committé, vérification SHA-512 automatique par npm |
 | CSP (Content Security Policy) | Headers de sécurité pour empêcher les injections XSS |
 | Liens externes sécurisés | `target="_blank"` toujours avec `rel="noopener noreferrer"` |
 | Clés localStorage non sensibles | Les clés de stockage ne contiennent pas de données personnelles |
 | Limite batch RSS | L'endpoint `POST /api/rss/fetch-multiple` refuse plus de 20 URLs par requête (protection contre les abus) |
 | Limite articles IA | L'endpoint `POST /api/ai/generate` refuse plus de 15 articles (protection tokens API). Double validation : frontend bloque la sélection, backend valide la requête |
+| Correctifs de sécurité | Angular mis à jour de 21.1.5 → 21.2.0 pour corriger CVE XSS i18n (GHSA-prjf-86w9-mfqv). Commit dédié avec référence CVE pour la traçabilité |
 
 ---
 
@@ -758,9 +778,9 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 |---|---|---|---|
 | **Étape 8** (fin Phase 1) | Unitaire + Composant | Vitest + Angular Testing Library | Services, pipes, logique métier frontend — avec les mocks actuels |
 | **Étapes 10-12** (pendant intégration) | Unitaire frontend mis à jour | Vitest | Services avec mocks des services HTTP (RssApiService, AiApiService) |
-| **Étape 13** (après intégration) | E2E | Playwright | Parcours utilisateur complets (créer projet → ajouter sources → voir articles réels → générer contenu IA) |
+| **Étape 13** (après intégration) | E2E | Playwright | ✅ 19 tests : parcours complets (projet CRUD, sources, articles RSS, génération IA) × 3 navigateurs |
 
-### Fichiers de test — Étapes 8 + 10 + 12
+### Fichiers de test unitaires — Étapes 8 + 10 + 12
 
 | Fichier | Tests | Ce qui est couvert |
 |---|---|---|
@@ -773,7 +793,18 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 | `article-filters.spec.ts` | 8 | Debounce RxJS 300ms, distinctUntilChanged, cleanup destroy$ |
 | **Total** | **151** | **4/4 services, 1/1 pipe, 2 composants (les seuls avec logique)** |
 
-### Techniques de test utilisées
+### Fichiers de test E2E — Étape 13
+
+| Fichier | Tests | Ce qui est couvert |
+|---|---|---|
+| `e2e/smoke.spec.ts` | 3 | App shell charge, navigation responsive (sidebar vs header), état vide |
+| `e2e/projects.spec.ts` | 5 | CRUD complet : créer, afficher, ouvrir workspace, modifier, supprimer |
+| `e2e/sources.spec.ts` | 5 | État vide, ajouter source, toggle on/off, supprimer (window.confirm), compteur |
+| `e2e/articles.spec.ts` | 4 | Chargement RSS réel, filtre keyword, reset filtres, sélection + panel IA |
+| `e2e/generation.spec.ts` | 3 | Générer synthèse, revue de presse, post LinkedIn (provider mock) |
+| **Total** | **19** | **5 parcours critiques × 3 navigateurs (Chromium, Firefox, Mobile Chrome)** |
+
+### Techniques de test unitaires
 
 | Technique | Pourquoi |
 |---|---|
@@ -785,6 +816,17 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 | Mock `RssApiService` / `AiApiService` avec `vi.fn()` | Isolation des tests — pas de vraie requête HTTP, réponse contrôlée |
 | `of()` de RxJS pour les mocks Observable | Retourne un Observable synchrone — simule `HttpClient.post()` sans réseau |
 | `throwError()` de RxJS pour les mocks d'erreur | Simule une erreur HTTP — teste `HttpErrorResponse` et le mapping vers messages français |
+
+### Techniques E2E
+
+| Technique | Pourquoi |
+|---|---|
+| `page.locator('main')` scoping | La sidebar duplique les textes sur desktop — scoper sur `<main>` évite les ambiguïtés `strict mode violation` |
+| `getByRole('button', { name: ... })` | Utilise les `aria-label` existants — teste l'accessibilité en même temps que la fonctionnalité |
+| `page.on('dialog', ...)` | Les `window.confirm()` natifs sont invisibles aux sélecteurs CSS — Playwright a une API dédiée |
+| `waitFor('visible').catch(() => {})` | Gère la race condition du loading RSS : si le spinner est déjà parti, le `catch` évite l'échec |
+| `test.describe.configure({ mode: 'serial' })` | Les tests de génération chargent le même flux RSS — le mode séquentiel évite la saturation |
+| `AI_PROVIDER: 'mock'` dans webServer.env | Résultats déterministes, pas de clé API nécessaire, 400-900ms au lieu de 5-30s |
 
 ---
 
@@ -813,7 +855,7 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 | **10** | Intégration Angular ↔ Backend RSS (remplacement des mocks articles) | ✅ Terminé |
 | **11** | Backend : endpoint IA avec Strategy Pattern (Mistral + Mock) | ✅ Terminé |
 | **12** | Intégration Angular ↔ Backend IA (DTOs, mapping, erreurs, limite sélection, 151 tests) | ✅ Terminé |
-| **13** | Tests E2E (Playwright), sécurité, RGPD, build production | ⬜ À faire |
+| **13** | Tests E2E (Playwright) ✅, sécurité 🔄, RGPD, build production | 🔄 En cours |
 
 ---
 
@@ -829,13 +871,11 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 
 **Quand** : Sous-étape autonome.
 
-### TODO 5.7 — Audit `theme()` dans les SCSS de composants
+### ~~TODO 5.7 — Audit `theme()` dans les SCSS de composants~~ ✅ Résolu
 
 **Situation** : Découvert à l'étape 5 que la fonction Tailwind `theme()` ne fonctionne pas dans les fichiers SCSS de composants Angular (compilation isolée). Corrigé dans `ai-action-panel.scss` et `generated-content.scss` en utilisant les valeurs hex.
 
-**Ce qu'il faudra** : Auditer tous les SCSS de composants existants pour remplacer d'éventuels `theme()` restants par les valeurs hex.
-
-**Quand** : Sous-étape autonome.
+**Résolution** : Audit complet effectué à l'étape 13.5 via `Get-ChildItem -Filter *.scss | Select-String "theme("`. Résultat : aucun `theme()` restant. Tous ont été corrigés aux étapes précédentes.
 
 ### TODO 6.7 — Page de génération guidée (wizard)
 
@@ -924,3 +964,12 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 | `verbatimModuleSyntax` | Option TypeScript qui impose de distinguer `import type { X }` (type uniquement, disparaît à la compilation) de `import { X }` (code runtime). Rend explicite ce qui est du typage et ce qui est du code. |
 | `import type` | Import TypeScript réservé aux types. Supprimé à la compilation — ne génère aucun code JavaScript. Obligatoire avec `verbatimModuleSyntax` pour les imports qui ne sont utilisés que comme types. |
 | `@types/node` | Package npm contenant les définitions de types TypeScript pour les APIs Node.js (`process`, `console`, `Buffer`, etc.). La version majeure doit correspondre à la version majeure de Node.js installée. |
+| `Playwright` | Framework de tests E2E par Microsoft. Automatise un vrai navigateur (Chromium, Firefox, WebKit) pour simuler les parcours utilisateur. Auto-waiting natif — pas besoin de `sleep()` ou `waitFor()`. |
+| `Test E2E (End-to-End)` | Test qui vérifie un parcours utilisateur complet dans un vrai navigateur. Contrairement aux tests unitaires (qui testent une fonction isolée), les tests E2E testent toutes les couches ensemble (UI + backend + réseau). Plus lent mais détecte les bugs d'intégration. |
+| `Pyramide des tests` | Stratégie de test : beaucoup de tests unitaires (rapides, bas niveau), peu de tests E2E (lents, haut niveau). Ratio typique : 151 unitaires pour 19 E2E. Les unitaires vérifient chaque pièce, les E2E vérifient l'assemblage. |
+| `Auto-waiting` | Mécanisme Playwright qui attend automatiquement qu'un élément soit visible, cliquable et stable avant d'interagir. Élimine les `sleep(2000)` et les tests flaky (instables). |
+| `Strict mode (Playwright)` | Mode par défaut où Playwright refuse d'agir si un sélecteur matche plusieurs éléments. Force à écrire des sélecteurs précis. Solution courante : scoper sur `page.locator('main')`. |
+| `npm audit` | Commande qui compare les versions des dépendances avec la base de données GitHub Advisory. Détecte les vulnérabilités connues. `npm audit --audit-level=high` en CI/CD bloque le déploiement si faille critique. |
+| `Dependabot` | Service GitHub qui surveille les dépendances et crée automatiquement des PR quand une faille de sécurité est découverte. Filet de sécurité passif — travaille 24/7. |
+| `semver (Semantic Versioning)` | Convention de versioning : `MAJOR.MINOR.PATCH`. MAJOR = breaking change, MINOR = nouvelle feature (compatible), PATCH = correctif (compatible). Le `^` dans package.json autorise minor+patch, le `~` autorise patch seulement. |
+| `CVE / GHSA` | Identifiants uniques de vulnérabilités de sécurité. CVE = Common Vulnerabilities and Exposures (standard mondial). GHSA = GitHub Security Advisory (base GitHub). Un commit de correction doit référencer l'identifiant pour la traçabilité. |

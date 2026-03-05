@@ -69,6 +69,13 @@ export const routes: Routes = [
       m => m.HistoryListComponent
     ),
 },
+{
+    path: 'settings',
+    loadComponent: () =>
+      import('./features/settings/components/settings-page').then(
+        m => m.SettingsPage
+      ),
+  },
 ];
 
 

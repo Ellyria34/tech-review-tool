@@ -110,6 +110,17 @@
           </div>
         }
 
+        <!-- GDPR notice — transparency about third-party data processing -->
+        @if (!generatedResult()) {
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-2.5 text-xs text-blue-700">
+            <p>
+              ℹ️ Les titres, résumés et URLs des articles sélectionnés seront
+              envoyés à un service d'IA externe pour générer le contenu.
+              Aucune donnée personnelle n'est transmise.
+            </p>
+          </div>
+        }
+
         <!-- Generate button (hidden during generation) -->
         @if (!isGenerating()) {
           <button

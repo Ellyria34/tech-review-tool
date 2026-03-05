@@ -1,0 +1,60 @@
+<div class="space-y-6">
+  <!-- Header -->
+  <header>
+    <div class="flex items-center gap-3">
+      <a 
+        routerLink="/projects"
+        class="text-gray-400 hover:text-gray-600 transition-colors"
+        aria-label="Projects"
+        > ←
+      </a>
+      <h1 class="text-lg font-bold text-gray-800">⚙️ Paramètres</h1>
+    </div>
+      <p class="text-xs text-gray-400 mt-1">Gestion des données et confidentialité</p>
+  </header>
+
+  <!-- Data information (GDPR transparency) -->
+  <section class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+    <h2 class="text-sm font-semibold text-blue-800 mb-2">ℹ️ Vos données</h2>
+    <p class="text-xs text-blue-700 leading-relaxed">
+      Toutes vos données (projets, sources, articles, contenus générés) sont
+      stockées <strong>localement dans votre navigateur</strong> (localStorage).
+      Aucune donnée personnelle n'est envoyée à un serveur.
+    </p>
+    <p class="text-xs text-blue-700 leading-relaxed mt-2">
+      Lors de la génération de contenu IA, seuls les titres, résumés et URLs
+      des articles sélectionnés sont transmis au service d'IA externe.
+    </p>
+  </section>
+
+  <!-- Export data (GDPR portability — Article 20) -->
+  <section class="bg-white border border-gray-200 rounded-lg p-4">
+    <h2 class="text-sm font-semibold text-gray-800 mb-1">📥 Exporter mes données</h2>
+    <p class="text-xs text-gray-500 mb-3">
+      Télécharge toutes vos données au format JSON (projets, sources, articles, générations).
+    </p>
+    <button
+      class="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium
+             hover:bg-teal-700 transition-colors"
+      (click)="onExport()"
+    >
+      📥 Exporter mes données
+    </button>
+  </section>
+
+  <!-- Delete all data (GDPR erasure — Article 17) -->
+  <section class="bg-white border border-gray-200 rounded-lg p-4">
+    <h2 class="text-sm font-semibold text-gray-800 mb-1">🗑️ Effacer toutes mes données</h2>
+    <p class="text-xs text-gray-500 mb-3">
+      Supprime définitivement tous vos projets, sources, articles et contenus générés.
+      Cette action est irréversible.
+    </p>
+    <button
+      class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium
+             hover:bg-red-700 transition-colors"
+      (click)="onDeleteAll()"
+    >
+      🗑️ Effacer toutes mes données
+    </button>
+  </section>
+</div>

@@ -363,7 +363,7 @@ Each `computed()` auto-recalculates when its dependencies change — forming a r
 - [x] **Step 10** — Angular ↔ Backend RSS integration (replace mock articles)
 - [x] **Step 11** — Backend: AI endpoint with Strategy Pattern (Mistral + Mock)
 - [x] **Step 12** — Angular ↔ Backend AI integration (DTOs, error handling, selection limit, 151 tests)
-- [ ] **Step 13** — E2E tests ✅, security ✅, GDPR ✅, production build 🔄
+- [x] **Step 13** — E2E tests ✅, security ✅, GDPR ✅, production build 🔄
 
 ### TODOs (deferred improvements)
 

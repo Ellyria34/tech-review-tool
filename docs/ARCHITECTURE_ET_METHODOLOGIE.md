@@ -869,7 +869,7 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 | **10** | Intégration Angular ↔ Backend RSS (remplacement des mocks articles) | ✅ Terminé |
 | **11** | Backend : endpoint IA avec Strategy Pattern (Mistral + Mock) | ✅ Terminé |
 | **12** | Intégration Angular ↔ Backend IA (DTOs, mapping, erreurs, limite sélection, 151 tests) | ✅ Terminé |
-| **13** | Tests E2E (Playwright) ✅, sécurité ✅, RGPD ✅, build production | 🔄 En cours |
+| **13** | Tests E2E (Playwright) ✅, sécurité ✅, RGPD ✅, build production ✅ | 🔄 En cours (doc) |
 
 ---
 

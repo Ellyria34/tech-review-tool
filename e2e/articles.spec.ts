@@ -87,7 +87,8 @@ test.describe('Article Management', () => {
 
     // Type a keyword that matches nothing
     await page.fill('#keyword-input', 'xyznotexist789');
-
+    await page.waitForTimeout(500); // Wait for debounce (300ms)
+    
     // Should show empty state for filters
     await expect(main.getByText('Aucun résultat')).toBeVisible();
   });
@@ -97,6 +98,7 @@ test.describe('Article Management', () => {
 
     // Apply a keyword filter
     await page.fill('#keyword-input', 'xyznotexist789');
+    await page.waitForTimeout(500);
     await expect(main.getByText('Aucun résultat')).toBeVisible();
 
     // Reset filters
@@ -123,8 +125,4 @@ async function addSource(
   const main = page.locator('main');
   await main.getByText('Ajouter', { exact: true }).click();
   await expect(main.getByText(SOURCE_NAME)).toBeVisible();
-}
-
-async function onContentGenerated() {
-
 }

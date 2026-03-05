@@ -22,7 +22,9 @@ TechReviewTool is a web application that helps developers and tech professionals
 - ✅ **Responsive design** — Mobile-first with adaptive desktop layout (sidebar + contextual navigation)
 - ✅ **Tested** — 151 unit tests (Vitest) + 19 E2E tests (Playwright) across 3 browsers
 - ✅ **Real RSS backend** — Fastify API fetching and parsing live RSS/Atom feeds
-- ✅ **Security** — Dependency auditing, Dependabot alerts, no hardcoded secrets
+- ✅ **Security** — Helmet (CSP, HSTS), CORS, rate limiting, dependency auditing, Dependabot alerts
+- ✅ **GDPR-compliant** — Data export (JSON), full erasure, AI transparency notice, local-first storage
+- ✅ **Settings page** — Data management (export, delete all), privacy information
 
 ## 🛠️ Tech Stack
 
@@ -33,6 +35,9 @@ TechReviewTool is a web application that helps developers and tech professionals
 | TypeScript | 5.8+ (client) / 5.9+ (api) | Type-safe JavaScript |
 | Mistral AI API | mistral-small-latest | AI content generation (synthesis, press review, LinkedIn) |
 | @rowanmanning/feed-parser | 2.x | RSS and Atom feed parser |
+| @fastify/helmet | latest | HTTP security headers (CSP, HSTS, X-Frame-Options) |
+| @fastify/cors | latest | Cross-Origin Resource Sharing configuration |
+| @fastify/rate-limit | latest | API rate limiting (100 req/min per IP) |
 | SCSS | — | Styling with variables, nesting, mixins |
 | Tailwind CSS | 4.x | Utility-first CSS framework |
 | Node.js | 22.22.0 (Maintenance LTS) | JavaScript runtime |
@@ -59,7 +64,7 @@ tech-review-tool/                      ← Monorepo root (npm workspaces)
 │   │   │   ├── features/
 │   │   │   │   ├── ai-actions/                 # AI content generation
 │   │   │   │   │   ├── components/
-│   │   │   │   │   │   ├── ai-action-panel/    # Bottom sheet: type selection + generation + result
+│   │   │   │   │   │   ├── ai-action-panel/    # Bottom sheet: type selection + GDPR notice + generation
 │   │   │   │   │   │   └── generated-content/  # Content display with copy, .md export, delete
 │   │   │   │   │   └── services/
 │   │   │   │   │       └── ai.service.ts       # Backend AI calls, DTO mapping, localStorage
@@ -81,6 +86,9 @@ tech-review-tool/                      ← Monorepo root (npm workspaces)
 │   │   │   │   │   │   └── project-workspace/  # Project dashboard (stats, actions, history)
 │   │   │   │   │   └── services/
 │   │   │   │   │       └── project.service.ts  # CRUD + Signals + localStorage
+│   │   │   │   ├── settings/                   # GDPR settings (data export, erasure)
+│   │   │   │   │   └── components/
+│   │   │   │   │       └── settings-page/      # Export JSON, delete all, privacy info
 │   │   │   │   └── sources/                    # RSS source management
 │   │   │   │       ├── components/
 │   │   │   │       │   ├── source-card/        # Single source card (toggle, edit, delete)
@@ -129,9 +137,9 @@ tech-review-tool/                      ← Monorepo root (npm workspaces)
 │   │   ├── services/
 │   │   │   ├── ai.service.ts                   # AI orchestration + provider factory
 │   │   │   └── rss.service.ts                  # RSS feed fetching and parsing
-│   │   └── server.ts                           # Fastify server entry point
+│   │   └── server.ts                           # Fastify server + security plugins (Helmet, CORS, Rate Limit)
 │   ├── .env.example                            # Environment variables template (committed)
-│   ├── package.json                            # Fastify + feed-parser dependencies
+│   ├── package.json                            # Fastify + feed-parser + security plugins
 │   └── tsconfig.json                           # TypeScript strict config (NodeNext)
 ├── e2e/                                        ← Playwright E2E tests
 │   ├── smoke.spec.ts                           # App shell, responsive navigation, empty state
@@ -186,6 +194,7 @@ ng serve                     # Angular on http://localhost:4200
 | `npx playwright test --project=chromium` | root | Run E2E tests on Chromium only |
 | `npx playwright show-report` | root | Open last E2E test report |
 | `ng lint` | `client/` | Run ESLint code quality checks |
+| `npm audit` | root | Check for dependency vulnerabilities |
 
 > **Note**: Commands must be run from the respective workspace directory. Dependencies are installed once at root level via npm workspaces.
 
@@ -217,6 +226,34 @@ ng serve                     # Angular on http://localhost:4200
 | `articles.spec.ts` | 4 | Load articles from RSS, keyword filter, reset filters, selection + AI panel |
 | `generation.spec.ts` | 3 | Generate synthesis, press review, LinkedIn post (mock provider) |
 
+## 🔒 Security
+
+### HTTP Security Headers (via @fastify/helmet)
+
+The backend sends security headers with every response: Content-Security-Policy (CSP), Strict-Transport-Security (HSTS), X-Content-Type-Options, X-Frame-Options, Referrer-Policy, and more.
+
+### CORS
+
+API access is restricted to the Angular origin via `@fastify/cors`. The allowed origin is configurable via the `CORS_ORIGIN` environment variable (defaults to `http://localhost:4200` in development).
+
+### Rate Limiting
+
+`@fastify/rate-limit` limits API requests to 100 per minute per IP address. Localhost is allowlisted for development and E2E testing.
+
+### Dependency Auditing
+
+Dependencies are monitored via `npm audit` and GitHub Dependabot (alerts + automatic security PRs). Angular was updated from 21.1.5 to 21.2.0 to fix a high-severity XSS vulnerability (GHSA-prjf-86w9-mfqv).
+
+## 🛡️ GDPR Compliance
+
+| GDPR Right | Implementation |
+|---|---|
+| **Transparency** (Art. 13) | Notice in AI panel: informs users that article data is sent to an external AI service |
+| **Data portability** (Art. 20) | Settings page: export all data as JSON (projects, sources, articles, generations) |
+| **Right to erasure** (Art. 17) | Settings page: delete all data with confirmation (`localStorage.clear()`) |
+| **Data minimization** | Local-first: all data stored in browser localStorage, no server-side user data |
+| **No tracking** | Angular telemetry disabled, no third-party cookies, no analytics |
+
 ## 🏗️ Architecture
 
 ### Monorepo with npm Workspaces
@@ -241,6 +278,7 @@ routes/      → HTTP layer (request validation, response formatting)
 services/    → Business logic (orchestration, provider factory)
 providers/   → AI provider implementations (Strategy Pattern)
 models/      → Data contracts (TypeScript interfaces / DTOs)
+server.ts    → Entry point + security plugins (Helmet, CORS, Rate Limit)
 ```
 
 ### Frontend ↔ Backend Integration
@@ -292,8 +330,8 @@ Each `computed()` auto-recalculates when its dependencies change — forming a r
 - **DTO Pattern** — Separate data contracts for API communication and frontend models
 - **Mobile-first** — Responsive design starting from smallest screens
 - **Accessibility (a11y)** — WCAG 2.1 AA compliance (ARIA roles, keyboard navigation, screen readers)
-- **GDPR-friendly** — Local-first data, no unnecessary third-party tracking
-- **Security** — `noopener,noreferrer` on external links, API keys in `.env` (never committed), `npm audit`, Dependabot
+- **GDPR-friendly** — Local-first data, export/erasure, AI transparency notice
+- **Defense in depth** — Helmet (CSP/HSTS), CORS, rate limiting, `npm audit`, Dependabot
 - **Test Pyramid** — Unit tests (Vitest) for logic, E2E tests (Playwright) for user journeys
 - **Conventional Commits** — Structured commit messages for readable history
 
@@ -325,7 +363,7 @@ Each `computed()` auto-recalculates when its dependencies change — forming a r
 - [x] **Step 10** — Angular ↔ Backend RSS integration (replace mock articles)
 - [x] **Step 11** — Backend: AI endpoint with Strategy Pattern (Mistral + Mock)
 - [x] **Step 12** — Angular ↔ Backend AI integration (DTOs, error handling, selection limit, 151 tests)
-- [ ] **Step 13** — E2E tests (Playwright) ✅, security 🔄, GDPR, production build
+- [ ] **Step 13** — E2E tests ✅, security ✅, GDPR ✅, production build 🔄
 
 ### TODOs (deferred improvements)
 

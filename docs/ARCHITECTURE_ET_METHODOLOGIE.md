@@ -3,7 +3,7 @@
 > **Nom du projet** : TechReviewTool — Agrégateur intelligent de veille technologique
 > **Date de création** : 14 février 2026
 > **Auteur** : Ellyria34 - Sarah LLEON
-> **Statut** : Phase 1 (frontend) terminée ✅ — Phase 2 (backend) en cours — Step 13 en cours (E2E tests ✅, sécurité/RGPD en cours)
+> **Statut** : Phase 1 (frontend) terminée ✅ — Phase 2 (backend) en cours — Step 13 en cours (E2E ✅, sécurité ✅, RGPD ✅, build production 🔄)
 
 ---
 
@@ -607,7 +607,8 @@ tech-review-tool/                  ← Monorepo root (npm workspaces)
 │   │   │   │   ├── sources/       # Gestion des sources RSS (Many-to-Many)
 │   │   │   │   ├── articles/      # Liste d'articles, filtres, sélection
 │   │   │   │   ├── ai-actions/    # Génération IA (synthèse, revue de presse, LinkedIn)
-│   │   │   │   └── history/       # Historique des générations par projet
+│   │   │   │   ├── history/       # Historique des générations par projet
+│   │   │   │   └── settings/     # Paramètres RGPD (export données, effacement)
 │   │   │   └── shared/            # Composants réutilisables, pipes, directives, modèles
 │   │   │       ├── data/          # Données centralisées (catégories)
 │   │   │       ├── models/        # Interfaces TypeScript
@@ -728,8 +729,9 @@ Pour un projet solo avec montée en compétence :
 | **Minimisation** | On ne collecte que les données nécessaires (URLs de sources, préférences) |
 | **Local-first** | Les données sont stockées localement (localStorage), pas sur un serveur tiers |
 | **Pas de tracking** | Télémétrie Angular désactivée, pas de cookies tiers |
-| **Transparence** | L'utilisateur sait quelles données sont stockées et peut les supprimer |
-| **Droit à l'effacement** | Suppression d'un projet = suppression des liaisons et des contenus générés associés (cascade delete) |
+| **Transparence** | L'utilisateur sait quelles données sont stockées. Notice RGPD dans le panel IA avant envoi au service externe |
+| **Droit à l'effacement** | Suppression d'un projet = cascade delete. Page Settings : bouton "Effacer toutes mes données" (`localStorage.clear()`) |
+| **Droit à la portabilité** | Page Settings : bouton "Exporter mes données" — télécharge un JSON complet (projets, sources, articles, générations) |
 
 ### 8.2 Sécurité applicative
 
@@ -740,12 +742,24 @@ Pour un projet solo avec montée en compétence :
 | `--env-file` natif | Node.js 22 charge le `.env` nativement — pas de package `dotenv` (moins de surface d'attaque) |
 | Dépendances auditées | `npm audit` régulier pour détecter les vulnérabilités. Dependabot activé sur GitHub pour les alertes automatiques |
 | Intégrité des paquets | `package-lock.json` committé, vérification SHA-512 automatique par npm |
-| CSP (Content Security Policy) | Headers de sécurité pour empêcher les injections XSS |
+| **Helmet (CSP)** | `@fastify/helmet` ajoute 10+ headers de sécurité : `Content-Security-Policy`, `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: no-referrer` |
+| **CORS** | `@fastify/cors` restreint l'accès API à l'origin Angular. Configurable via `CORS_ORIGIN` (env var). En dev : `localhost:4200`, en prod : le vrai domaine |
+| **Rate Limiting** | `@fastify/rate-limit` : 100 requêtes/minute par IP. Localhost en allowlist pour les tests. Protège surtout `/api/ai/generate` (tokens API payants) |
 | Liens externes sécurisés | `target="_blank"` toujours avec `rel="noopener noreferrer"` |
 | Clés localStorage non sensibles | Les clés de stockage ne contiennent pas de données personnelles |
 | Limite batch RSS | L'endpoint `POST /api/rss/fetch-multiple` refuse plus de 20 URLs par requête (protection contre les abus) |
 | Limite articles IA | L'endpoint `POST /api/ai/generate` refuse plus de 15 articles (protection tokens API). Double validation : frontend bloque la sélection, backend valide la requête |
 | Correctifs de sécurité | Angular mis à jour de 21.1.5 → 21.2.0 pour corriger CVE XSS i18n (GHSA-prjf-86w9-mfqv). Commit dédié avec référence CVE pour la traçabilité |
+
+### 8.3 Page Settings (RGPD)
+
+Accessible via `/settings` (lien dans la sidebar desktop et icône ⚙️ dans le header mobile). Contient :
+
+- **Section information** : explique ce qui est stocké et ce qui transite par le service IA
+- **Exporter mes données** : collecte les 5 clés localStorage dans un objet JSON et déclenche un téléchargement (`Blob` + `createObjectURL`)
+- **Effacer toutes mes données** : `window.confirm()` puis `localStorage.clear()` puis redirection vers `/projects`
+
+Placée dans `features/settings/` (pas dans `core/`) car elle a sa propre route et de la logique métier — c'est une page, pas un composant de layout.
 
 ---
 
@@ -793,18 +807,7 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 | `article-filters.spec.ts` | 8 | Debounce RxJS 300ms, distinctUntilChanged, cleanup destroy$ |
 | **Total** | **151** | **4/4 services, 1/1 pipe, 2 composants (les seuls avec logique)** |
 
-### Fichiers de test E2E — Étape 13
-
-| Fichier | Tests | Ce qui est couvert |
-|---|---|---|
-| `e2e/smoke.spec.ts` | 3 | App shell charge, navigation responsive (sidebar vs header), état vide |
-| `e2e/projects.spec.ts` | 5 | CRUD complet : créer, afficher, ouvrir workspace, modifier, supprimer |
-| `e2e/sources.spec.ts` | 5 | État vide, ajouter source, toggle on/off, supprimer (window.confirm), compteur |
-| `e2e/articles.spec.ts` | 4 | Chargement RSS réel, filtre keyword, reset filtres, sélection + panel IA |
-| `e2e/generation.spec.ts` | 3 | Générer synthèse, revue de presse, post LinkedIn (provider mock) |
-| **Total** | **19** | **5 parcours critiques × 3 navigateurs (Chromium, Firefox, Mobile Chrome)** |
-
-### Techniques de test unitaires
+### Techniques de test utilisées
 
 | Technique | Pourquoi |
 |---|---|
@@ -816,6 +819,17 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 | Mock `RssApiService` / `AiApiService` avec `vi.fn()` | Isolation des tests — pas de vraie requête HTTP, réponse contrôlée |
 | `of()` de RxJS pour les mocks Observable | Retourne un Observable synchrone — simule `HttpClient.post()` sans réseau |
 | `throwError()` de RxJS pour les mocks d'erreur | Simule une erreur HTTP — teste `HttpErrorResponse` et le mapping vers messages français |
+
+### Fichiers de test E2E — Étape 13
+
+| Fichier | Tests | Ce qui est couvert |
+|---|---|---|
+| `e2e/smoke.spec.ts` | 3 | App shell charge, navigation responsive (sidebar vs header), état vide |
+| `e2e/projects.spec.ts` | 5 | CRUD complet : créer, afficher, ouvrir workspace, modifier, supprimer |
+| `e2e/sources.spec.ts` | 5 | État vide, ajouter source, toggle on/off, supprimer (window.confirm), compteur |
+| `e2e/articles.spec.ts` | 4 | Chargement RSS réel, filtre keyword, reset filtres, sélection + panel IA |
+| `e2e/generation.spec.ts` | 3 | Générer synthèse, revue de presse, post LinkedIn (provider mock) |
+| **Total** | **19** | **5 parcours critiques × 3 navigateurs (Chromium, Firefox, Mobile Chrome)** |
 
 ### Techniques E2E
 
@@ -855,7 +869,7 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 | **10** | Intégration Angular ↔ Backend RSS (remplacement des mocks articles) | ✅ Terminé |
 | **11** | Backend : endpoint IA avec Strategy Pattern (Mistral + Mock) | ✅ Terminé |
 | **12** | Intégration Angular ↔ Backend IA (DTOs, mapping, erreurs, limite sélection, 151 tests) | ✅ Terminé |
-| **13** | Tests E2E (Playwright) ✅, sécurité 🔄, RGPD, build production | 🔄 En cours |
+| **13** | Tests E2E (Playwright) ✅, sécurité ✅, RGPD ✅, build production | 🔄 En cours |
 
 ---
 
@@ -973,3 +987,6 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 | `Dependabot` | Service GitHub qui surveille les dépendances et crée automatiquement des PR quand une faille de sécurité est découverte. Filet de sécurité passif — travaille 24/7. |
 | `semver (Semantic Versioning)` | Convention de versioning : `MAJOR.MINOR.PATCH`. MAJOR = breaking change, MINOR = nouvelle feature (compatible), PATCH = correctif (compatible). Le `^` dans package.json autorise minor+patch, le `~` autorise patch seulement. |
 | `CVE / GHSA` | Identifiants uniques de vulnérabilités de sécurité. CVE = Common Vulnerabilities and Exposures (standard mondial). GHSA = GitHub Security Advisory (base GitHub). Un commit de correction doit référencer l'identifiant pour la traçabilité. |
+| `Helmet` | Plugin Fastify (`@fastify/helmet`) qui ajoute automatiquement les headers HTTP de sécurité (CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy). Enregistré avant les routes pour protéger toutes les réponses. |
+| `CSP (Content Security Policy)` | Header HTTP qui contrôle d'où les navigateurs peuvent charger les ressources (scripts, styles, images). `default-src 'self'` = tout doit venir du même domaine. Bloque les injections XSS de scripts externes. `style-src 'unsafe-inline'` est nécessaire pour les frameworks CSS utility-first comme Tailwind. |
+| `Rate Limiting` | Technique de protection qui limite le nombre de requêtes par IP par fenêtre de temps. Protège contre les abus (DDoS, scraping) et les coûts imprévus (tokens API IA). Implémenté via `@fastify/rate-limit`. |

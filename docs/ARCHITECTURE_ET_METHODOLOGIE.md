@@ -3,7 +3,7 @@
 > **Nom du projet** : TechReviewTool — Agrégateur intelligent de veille technologique
 > **Date de création** : 14 février 2026
 > **Auteur** : Ellyria34 - Sarah LLEON
-> **Statut** : Phase 1 (frontend) terminée ✅ — Phase 2 (backend) en cours — Step 13 en cours (E2E ✅, sécurité ✅, RGPD ✅, build production 🔄)
+> **Statut** : Phase 1 (frontend) terminée ✅ — Phase 2 (backend) terminée ✅ — Step 13 terminé ✅
 
 ---
 
@@ -869,7 +869,7 @@ Plutôt que de tout tester à la fin, les tests sont **intercalés** entre les p
 | **10** | Intégration Angular ↔ Backend RSS (remplacement des mocks articles) | ✅ Terminé |
 | **11** | Backend : endpoint IA avec Strategy Pattern (Mistral + Mock) | ✅ Terminé |
 | **12** | Intégration Angular ↔ Backend IA (DTOs, mapping, erreurs, limite sélection, 151 tests) | ✅ Terminé |
-| **13** | Tests E2E (Playwright) ✅, sécurité ✅, RGPD ✅, build production ✅ | 🔄 En cours (doc) |
+| **13** | Tests E2E, sécurité, RGPD, build production, documentation | ✅ Terminé |
 
 ---
 

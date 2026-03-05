@@ -44,6 +44,7 @@ TechReviewTool is a web application that helps developers and tech professionals
 | npm | 10.9.4 (bundled) | Package manager + workspaces |
 | Vitest | 4.x (bundled with Angular 21) | Unit testing framework |
 | Playwright | latest | End-to-end testing (Chromium, Firefox, Mobile Chrome) |
+| @fastify/static | latest | Serve Angular production build from Fastify |
 
 ## 📁 Project Structure
 
@@ -363,7 +364,7 @@ Each `computed()` auto-recalculates when its dependencies change — forming a r
 - [x] **Step 10** — Angular ↔ Backend RSS integration (replace mock articles)
 - [x] **Step 11** — Backend: AI endpoint with Strategy Pattern (Mistral + Mock)
 - [x] **Step 12** — Angular ↔ Backend AI integration (DTOs, error handling, selection limit, 151 tests)
-- [x] **Step 13** — E2E tests ✅, security ✅, GDPR ✅, production build 🔄
+- [x] **Step 13** — E2E tests ✅, security ✅, GDPR ✅, production build ✅
 
 ### TODOs (deferred improvements)
 

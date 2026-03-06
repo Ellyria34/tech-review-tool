@@ -341,8 +341,6 @@ Each `computed()` auto-recalculates when its dependencies change — forming a r
 | Document | Language | Description |
 |---|---|---|
 | [ARCHITECTURE_ET_METHODOLOGIE.md](./docs/ARCHITECTURE_ET_METHODOLOGIE.md) | 🇫🇷 French | Architecture decisions, methodology, SOLID principles |
-| [JOURNAL_DE_BORD.md](./JOURNAL_DE_BORD.md) | 🇫🇷 French | Development log Phase 1 (Steps 0-8) |
-| [JOURNAL_DE_BORD2.md](./JOURNAL_DE_BORD2.md) | 🇫🇷 French | Development log Phase 2 (Steps 9-13) |
 
 ## 🗺️ Roadmap
 
